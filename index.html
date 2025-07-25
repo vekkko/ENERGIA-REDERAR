@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energía Renovable en tu Mano</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></link>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-black text-white">
+    <div id="root"></div>
+    <!-- React and ReactDOM CDNs -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel CDN for JSX transformation in browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        // Global error handler to catch any uncaught exceptions
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error("GLOBAL ERROR CATCHED:", message, source, lineno, colno, error);
+            // Optionally, display a user-friendly message in the UI if the app hasn't completely crashed
+            // For now, relying on console output for debugging a black screen.
+            return true; // Prevents default browser error handling (e.g., console message)
+        };
+
+        // Define bimonthlyPeriods outside the App component to ensure it's always defined
+        const bimonthlyPeriods = ['Dic/Ene', 'Feb/Mar', 'Abr/May', 'Jun/Jul', 'Ago/Sep', 'Oct/Nov'];
+
+        // Define PV Equipment Information globally or outside the component for reusability
+        // This array is no longer used for PDF generation as per user's request to remove the general components section.
+        // It's kept here just in case it's used elsewhere or for future reference.
+        const pvEquipmentInfo = [
+            {
+                category: "Paneles Solares Fotovoltaicos",
+                description: "Capturan la luz solar y la convierten en electricidad de corriente continua (CC). Son el componente fundamental del sistema."
+            },
+            {
+                category: "Inversor Solar",
+                description: "Convierte la corriente continua (CC) generada por los paneles en corriente alterna (CA), que es la forma de electricidad utilizada en hogares y empresas."
+            },
+            {
+                category: "Estructuras de Montaje",
+                description: "Soportan los paneles solares en el tejado o en el suelo, asegurando la inclinación y orientación óptimas para maximizar la captación solar."
+            },
+            {
+                category: "Sistema de Monitorización",
+                description: "Permite supervisar el rendimiento del sistema en tiempo real, detectar posibles problemas y optimizar la producción de energía."
+            },
+            {
+                category: "Cableado y Protecciones Eléctricas",
+                description: "Incluye todo el cableado necesario para conectar los componentes, así como dispositivos de protección (fusibles, interruptores) para garantizar la seguridad del sistema."
+            },
+            {
+                category: "Baterías (para sistemas Off-Grid)",
+                description: "Almacenan el exceso de energía generada por los paneles para su uso durante la noche o en días nublados, proporcionando autonomía al sistema."
+            }
+        ];
+
+        // Main App component
+        const App = () => {
+          // Destructure useState and useEffect from the global React object
+          const { useState, useEffect, useCallback } = React;
+
+          // State variables for dynamic data (simulated for demo)
+          const [estimatedAnnualEnergySaved, setEstimatedAnnualEnergySaved] = useState(0.0); // Changed name and unit
+          const [estimatedAnnualCo2Avoided, setEstimatedCo2Avoided] = useState(0.0);
+
+          // State variables for PV System Dimensioning feature
+          const [showPVDimensioning, setShowPVDimensioning] = useState(false);
+          const [bimonthlyConsumption, setBimonthlyConsumption] = useState({
+            'Dic/Ene': '', 'Feb/Mar': '', 'Abr/May': '',
+            'Jun/Jul': '', 'Ago/Sep': '', 'Oct/Nov': ''
+          });
+          // Modified: Added 'quantity' to the initial appliance state
+          const [appliances, setAppliances] = useState([{ name: '', wattage: '', hours: '', quantity: '1' }]);
+          const [latitude, setLatitude] = useState('');
+          const [longitude, setLongitude] = useState('');
+          const [systemType, setSystemType] = useState('on-grid');
+          const [systemPhase, setSystemPhase] = useState('monofasico');
+          const [dimensioningResult, setDimensioningResult] = useState(null);
+          const [isDimensioning, setIsDimensioning] = useState(false);
+          const [isFetchingSolarData, setIsFetchingSolarData] = useState(false);
+          const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+          const [appMessage, setAppMessage] = useState({ type: '', text: '' }); // For custom alerts
+          const [arePdfLibsLoaded, setArePdfLibsLoaded] = useState(false); // New state for PDF libraries loading
+
+          // New state variables for Client Details within Dimensioning
+          const [clientName, setClientName] = useState('');
+          const [clientAddress, setClientAddress] = useState('');
+          // Replaced clientLocalidad and clientProvincia with selected IDs and names for dropdowns
+          const [provinces, setProvinces] = useState([]);
+          const [selectedProvinceId, setSelectedProvinceId] = useState('');
+          const [selectedProvinceName, setSelectedProvinceName] = useState(''); // To store the name for display/PDF
+          const [localities, setLocalities] = useState([]);
+          const [selectedLocalidadId, setSelectedLocalidadId] = useState('');
+          const [selectedLocalidadName, setSelectedLocalidadName] = useState(''); // To store the name for display/PDF
+          const [isLoadingProvinces, setIsLoadingProvinces] = useState(false);
+          const [isLoadingLocalities, setIsLoadingLocalities] = useState(false);
+
+          // New state variables for Off-Grid specific inputs
+          const [daysAutonomy, setDaysAutonomy] = useState('');
+          const [dwellingType, setDwellingType] = useState(''); // 'daily' or 'weekend'
+
+          // State for location image upload
+          const [locationImagePreview, setLocationImagePreview] = useState(null);
+
+          // Logo URL para la visualización en la aplicación
+          // NOTA IMPORTANTE: La URL "https://i.postimg.cc/rdHx5mDv/LOGO-2024.jpg" puede causar un error "Failed to fetch"
+          // debido a restricciones CORS (Cross-Origin Resource Sharing) del servidor de origen (postimg.cc).
+          // Si experimentas este error en el PDF, considera alojar la imagen en un servicio compatible con CORS
+          // o convertirla a una cadena Base64 y pegarla directamente aquí.
+          const REDERAR_LOGO_DISPLAY_URL = "https://i.postimg.cc/rdHx5mDv/LOGO-2024.jpg"; 
+          // Estado para almacenar el logo en Base64 para el PDF
+          const [pdfLogoBase64, setPdfLogoBase64] = useState(null);
+          // Nuevo estado para controlar si el logo está cargando
+          const [isLogoLoading, setIsLogoLoading] = useState(true);
+
+          // Image URLs for the PDF report - Using placeholder images as direct file_content URLs might not render
+          const TERMOACERO_IMAGE_URL = "https://placehold.co/250x150/ADD8E6/FFFFFF?text=Termotanque+Solar";
+          const PUBLI_PANEL_IMAGE_URL = "https://placehold.co/250x150/90EE90/FFFFFF?text=Panel+Solar";
+
+          // Component Data (from user-provided images, excluding brands)
+          const inverterOptions = [
+              // On-Grid Monofásico (kW, AC Voltage)
+              { type: 'on-grid', phase: 'monofasico', power_kW: 1.5, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 2.5, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 3.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 3.6, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 4.2, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 5.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 6.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 7.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'monofasico', power_kW: 10.0, voltage_ac_V: 230 },
+
+              // On-Grid Trifásico (kW, AC Voltage)
+              { type: 'on-grid', phase: 'trifasico', power_kW: 6.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'trifasico', power_kW: 8.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'trifasico', power_kW: 10.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'trifasico', power_kW: 15.0, voltage_ac_V: 230 },
+              { type: 'on-grid', phase: 'trifasico', power_kW: 20.0, voltage_ac_V: 230 },
+
+              // Off-Grid/Hybrid Monofásico (kW, DC Voltage, AC Voltage)
+              // VA converted to kW assuming Power Factor = 1 for simplicity in dimensioning
+              { type: 'off-grid', phase: 'monofasico', power_kW: 0.8, voltage_dc_V: 12, voltage_ac_V: 230 }, // 800VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 1.2, voltage_dc_V: 12, voltage_ac_V: 220 }, // 1200W
+              { type: 'off-grid', phase: 'monofasico', power_kW: 1.2, voltage_dc_V: 12, voltage_ac_V: 230 }, // 1200VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 1.6, voltage_dc_V: 12, voltage_ac_V: 230 }, // 1600VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 2.0, voltage_dc_V: 12, voltage_ac_V: 230 }, // 2000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 2.5, voltage_dc_V: 24, voltage_ac_V: 220 }, // 2500W
+              { type: 'off-grid', phase: 'monofasico', power_kW: 3.0, voltage_dc_V: 24, voltage_ac_V: 230, parallelizable: true }, // 3000W
+              { type: 'off-grid', phase: 'monofasico', power_kW: 3.0, voltage_dc_V: 12, voltage_ac_V: 230 }, // 3000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 3.0, voltage_dc_V: 24, voltage_ac_V: 230 }, // 3000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 3.5, voltage_dc_V: 48, voltage_ac_V: 230, parallelizable: true }, // 3500W
+              { type: 'off-grid', phase: 'monofasico', power_kW: 5.0, voltage_dc_V: 48, voltage_ac_V: 230, parallelizable: true }, // 5000W
+              { type: 'off-grid', phase: 'monofasico', power_kW: 5.0, voltage_dc_V: 12, voltage_ac_V: 230 }, // 5000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 5.0, voltage_dc_V: 24, voltage_ac_V: 230 }, // 5000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 5.0, voltage_dc_V: 48, voltage_ac_V: 230 }, // 5000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 8.0, voltage_dc_V: 48, voltage_ac_V: 230 }, // 8000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 10.0, voltage_dc_V: 48, voltage_ac_V: 230 }, // 10000VA
+              { type: 'off-grid', phase: 'monofasico', power_kW: 15.0, voltage_dc_V: 48, voltage_ac_V: 230 }, // 15000VA
+          ].sort((a, b) => a.power_kW - b.power_kW); // Sort by power for easier selection
+
+          const batteryOptions = [
+              { material: 'Litio', voltage_V: 48, capacity_Ah: 50, capacity_kWh: 2.56 },
+              { material: 'Litio', voltage_V: 48, capacity_Ah: 100, capacity_kWh: 5.12 },
+          ].sort((a, b) => a.capacity_kWh - b.capacity_kWh); // Sort by capacity for easier selection
+
+
+          // Custom Message Display
+          const showMessage = (type, text) => {
+            setAppMessage({ type, text });
+            setTimeout(() => setAppMessage({ type: '', text: '' }), 5000); // Clear message after 5 seconds
+          };
+
+          // useEffect to dynamically load PDF libraries
+          useEffect(() => {
+            const loadScript = (id, src, onloadCallback) => {
+              if (document.getElementById(id)) {
+                onloadCallback(); // Already loaded
+                return;
+              }
+              const script = document.createElement('script');
+              script.id = id;
+              script.src = src;
+              script.onload = onloadCallback;
+              script.onerror = () => {
+                console.error(`Failed to load script: ${src}`);
+                showMessage('error', `Error al cargar librería necesaria: ${src}.`);
+              };
+              document.body.appendChild(script);
+            };
+
+            let jspdfLoaded = false;
+            let html2canvasLoaded = false; 
+
+            const checkAllLibsLoaded = () => {
+              if (jspdfLoaded && html2canvasLoaded) { 
+                setArePdfLibsLoaded(true);
+                console.log("Todas las librerías PDF cargadas exitosamente.");
+              }
+            };
+
+            loadScript('jspdf-lib', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', () => {
+              jspdfLoaded = true;
+              checkAllLibsLoaded();
+            });
+            loadScript('html2canvas-lib', 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', () => {
+              html2canvasLoaded = true;
+              checkAllLibsLoaded();
+            });
+
+            // Cleanup function
+            return () => {
+              const jspdfScript = document.getElementById('jspdf-lib');
+              const html2canvasScript = document.getElementById('html2canvas-lib');
+              if (jspdfScript) jspdfScript.remove();
+              if (html2canvasScript) html2canvasScript.remove();
+            };
+          }, []); // Run only once on mount
+
+          // useEffect to update estimated values when dimensioningResult changes
+          useEffect(() => {
+            if (dimensioningResult) {
+               setEstimatedAnnualEnergySaved(dimensioningResult.estimatedAnnualProductionKWh);
+               setEstimatedCo2Avoided(dimensioningResult.calculatedAnnualCo2Avoided);
+            }
+          }, [dimensioningResult]);
+
+          // Effect to fetch provinces on component mount
+          useEffect(() => {
+            const fetchProvinces = async () => {
+              setIsLoadingProvinces(true);
+              try {
+                const response = await fetch('https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre');
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                setProvinces(data.provincias.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+              } catch (error) {
+                 console.error("Error fetching provinces:", error);
+                 showMessage('error', 'Error al cargar las provincias. Intente recargar la página.');
+              } finally {
+                setIsLoadingProvinces(false);
+              }
+            };
+            fetchProvinces();
+          }, []);
+
+          // Effect to fetch localities when a province is selected
+          useEffect(() => {
+            if (selectedProvinceId) {
+              const fetchLocalities = async () => {
+                setIsLoadingLocalities(true);
+                try {
+                  // Using a higher max value to ensure all localities are fetched if available
+                  const response = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${selectedProvinceId}&campos=id,nombre&max=5000`);
+                  if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+                  const data = await response.json();
+                  setLocalities(data.localidades.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+                  setSelectedLocalidadId(''); // Reset locality when province changes
+                  setSelectedLocalidadName('');
+                } catch (error) {
+                   console.error("Error fetching localities:", error);
+                   showMessage('error', 'Error al cargar las localidades. Intente seleccionar otra provincia.');
+                } finally {
+                  setIsLoadingLocalities(false);
+                }
+              };
+              fetchLocalities();
+            } else {
+              setLocalities([]); // Clear localities if no province is selected
+              setSelectedLocalidadId('');
+              setSelectedLocalidadName('');
+            }
+          }, [selectedProvinceId]);
+
+          // Debugging useEffect to log input states
+          useEffect(() => {
+            console.log("--- Estado de Entradas para el Botón Dimensionar ---");
+            console.log("Nombre Cliente Vacio:", !clientName);
+            console.log("Dirección Cliente Vacia:", !clientAddress);
+            console.log("Provincia Seleccionada Vacia:", !selectedProvinceId);
+            console.log("Localidad Seleccionada Vacia:", !selectedLocalidadId);
+            console.log("Latitud Vacia:", latitude.trim() === '');
+            console.log("Longitud Vacia:", longitude.trim() === '');
+            console.log("Tipo de Sistema:", systemType);
+
+            if (systemType === 'on-grid') {
+              const bimonthlyInvalid = Object.values(bimonthlyConsumption).some(val => val.trim() === '' || isNaN(parseFloat(val)));
+              console.log("Consumo Bimestral Inválido:", bimonthlyInvalid, bimonthlyConsumption);
+            } else {
+              // Check if there is at least one valid appliance entry
+              const hasValidApplianceEntry = appliances.some(app => 
+                  app.name.trim() !== ''
+                  && 
+                  !isNaN(parseFloat(app.wattage)) && parseFloat(app.wattage) > 0 && 
+                  !isNaN(parseFloat(app.hours))
+                  && parseFloat(app.hours) >= 0 &&
+                  !isNaN(parseInt(app.quantity)) && parseInt(app.quantity) > 0
+              );
+              console.log("Tiene al menos un electrodoméstico válido:", hasValidApplianceEntry, appliances);
+              console.log("Días de Autonomía Vacio/Inválido:", daysAutonomy.trim() === '' || isNaN(parseFloat(daysAutonomy)) || parseFloat(daysAutonomy) <= 0);
+              console.log("Tipo de Vivienda Vacio:", !dwellingType);
+            }
+            console.log("isDimensioning:", isDimensioning);
+            console.log("isFetchingSolarData:", isFetchingSolarData);
+            console.log("--------------------------------------------------");
+          }, [
+            clientName, clientAddress, selectedProvinceId, selectedLocalidadId,
+            latitude, longitude, systemType, bimonthlyConsumption, appliances,
+            isDimensioning, isFetchingSolarData, daysAutonomy, dwellingType
+          ]);
+
+          // Effect to fetch and convert logo to Base64 for PDF when component mounts
+          useEffect(() => {
+            const fetchAndConvertLogo = async () => {
+              setIsLogoLoading(true); // Start loading
+              console.log("Iniciando carga y conversión del logo para PDF...");
+              try {
+                const response = await fetch(REDERAR_LOGO_DISPLAY_URL, { mode: 'cors' });
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const blob = await response.blob();
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  setPdfLogoBase64(reader.result);
+                  console.log("Logo para PDF cargado y convertido a Base64 exitosamente.");
+                };
+                reader.onerror = (e) => {
+                  console.error("FileReader error durante la conversión del logo:", e);
+                  showMessage('error', 'Error al convertir el logo para el PDF.');
+                  setPdfLogoBase64(null); // Ensure it's null on error
+                };
+                reader.readAsDataURL(blob);
+              } catch (error) {
+                console.error("Error al cargar el logo para PDF:", error);
+                showMessage('error', 'Error al cargar el logo para el PDF. Se usará un marcador de posición de texto.');
+                setPdfLogoBase64(null); // Ensure it's null on error
+              } finally {
+                setIsLogoLoading(false); // End loading
+                console.log("Finalizada la carga del logo.");
+              }
+            };
+
+            fetchAndConvertLogo();
+          }, []); // Run once on component mount
+
+
+          // WhatsApp click handler
+          const handleWhatsAppClick = () => {
+            const whatsappLink = 'https://api.whatsapp.com/send/?phone=543434802264&text=%C2%A1Hola%21+Me+gustar%C3%ADa+saber+m%C3%A1s+sobre+la+energ%C3%ADa+renovable.&type=phone_number&app_absent=0';
+            window.open(whatsappLink, '_blank');
+          };
+
+          // Function to approximate HSP based on latitude and longitude from provided maps
+          const getApproximateHSP = (lat, lon) => {
+            // These values are highly approximate and visually estimated from the provided maps.
+            // They are not precise and should be used for rough estimation only.
+
+            // January HSP ()
+            let hspJan = 5.0; // Default if no specific region matches or for unknown areas
+            if (lat >= -28) { // Northern Argentina (roughly Jujuy to Catamarca/Formosa)
+                if (lon <= -67) hspJan = 7.5; // Andes region (higher HSP)
+                else hspJan = 6.5; // North East region
+            } else if (lat >= -35) { // Central Argentina (roughly La Rioja to Buenos Aires)
+                if (lon <= -67) hspJan = 7.0; // Cuyo region (higher HSP)
+                else hspJan = 6.0; // Pampas, Mesopotamia region
+            } else if (lat >= -42) { // Northern Patagonia (roughly La Pampa to Chubut North)
+                hspJan = 5.5;
+            } else { // Southern Patagonia (Chubut South to Tierra del Fuego)
+                hspJan = 4.5;
+            }
+
+            // June HSP ()
+            let hspJun = 2.0; // Default
+            if (lat >= -28) { // Northern Argentina
+                if (lon <= -67) hspJun = 3.5; // Andes region
+                else hspJun = 2.5; // North East region
+            } else if (lat >= -35) { // Central Argentina
+                if (lon <= -67) hspJun = 2.0; // Cuyo region
+                else hspJun = 1.5; // Pampas, Mesopotamia region
+            } else if (lat >= -42) { // Northern Patagonia
+                hspJun = 1.0;
+            } else { // Southern Patagonia
+                hspJun = 0.5;
+            }
+
+            // Return an average of January and June for a general annual approximation
+            return (hspJan + hspJun) / 2;
+          };
+
+          // Function to fetch solar irradiance data - MODIFICADA PARA USAR VALOR APROXIMADO
+          const fetchSolarIrradiance = async (lat, lon) => { 
+            setIsFetchingSolarData(true);
+            // Use the approximate HSP function based on provided maps
+            const approximatedHSP = getApproximateHSP(lat, lon);
+            console.warn(`Horas de Sol Pico (HSP) aproximadas para Lat: ${lat}, Lon: ${lon} son: ${approximatedHSP.toFixed(2)}.`);
+            showMessage('warning', `HSP aproximadas: ${approximatedHSP.toFixed(2)} horas/día (estimación visual de mapas).`);
+            setIsFetchingSolarData(false);
+            return approximatedHSP;
+          };
+
+          // Function to add a new appliance row for off-grid
+          const handleAddAppliance = () => {
+            // Modified: Added 'quantity' with default '1'
+            setAppliances([...appliances, { name: '', wattage: '', hours: '', quantity: '1' }]);
+          };
+
+          // Function to remove an appliance row for off-grid
+          const handleRemoveAppliance = (index) => {
+            const newAppliances = appliances.filter((_, i) => i !== index);
+            setAppliances(newAppliances);
+          };
+
+          // Function to handle changes in appliance input fields
+          const handleApplianceChange = (index, field, value) => {
+            const newAppliances = [...appliances];
+            newAppliances[index][field] = value;
+            setAppliances(newAppliances);
+          };
+
+          // Handler for bimonthly consumption inputs - Wrapped with useCallback
+          const handleBimonthlyInputChange = useCallback((period, value) => {
+            console.log(`DEBUG: handleBimonthlyInputChange called for period: ${period}, value: ${value}`);
+            setBimonthlyConsumption(prev => ({ ...prev, [period]: value }));
+          }, []); // Empty dependency array as it only depends on setBimonthlyConsumption (which is stable)
+
+          // Handler for location image upload
+          const handleLocationImageUpload = (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setLocationImagePreview(reader.result);
+                    console.log("DEBUG: Image Data URL generated:", reader.result.substring(0, 50) + "..."); // Log first 50 chars
+                };
+                reader.onerror = (e) => {
+                    console.error("FileReader error:", e);
+                    showMessage('error', 'Error al leer el archivo de imagen.');
+                    setLocationImagePreview(null);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                setLocationImagePreview(null);
+                console.log("DEBUG: No file selected for upload.");
+            }
+          };
+
+          // Helper function to determine if the dimensioning button should be disabled
+          const isDimensionButtonDisabled = () => {
+              if (isDimensioning || isFetchingSolarData) return true;
+              if (!clientName || !clientAddress || !selectedProvinceId || !selectedLocalidadId) {
+                console.log("DEBUG: Botón deshabilitado - Faltan datos del cliente.");
+                return true;
+              }
+              if (latitude.trim() === '' || longitude.trim() === '') {
+                console.log("DEBUG: Botón deshabilitado - Faltan latitud o longitud.");
+                return true;
+              }
+
+              if (systemType === 'on-grid') {
+                  const bimonthlyInvalid = Object.values(bimonthlyConsumption).some(val => val.trim() === '' || isNaN(parseFloat(val)));
+                  if (bimonthlyInvalid) {
+                    console.log("DEBUG: Botón deshabilitado - Consumo bimestral inválido.");
+                  }
+                  return bimonthlyInvalid;
+              } else { // off-grid
+                  // Check if there's at least one fully valid appliance entry
+                  const hasValidApplianceEntry = appliances.some(app => 
+                      app.name.trim() !== ''
+                      && 
+                      !isNaN(parseFloat(app.wattage)) && parseFloat(app.wattage) > 0 && 
+                      !isNaN(parseFloat(app.hours))
+                      && parseFloat(app.hours) >= 0 &&
+                      !isNaN(parseInt(app.quantity)) && parseInt(app.quantity) > 0 // Added quantity validation
+                  );
+                  // Also validate new off-grid specific fields
+                  const autonomyInvalid = daysAutonomy.trim() === '' || isNaN(parseFloat(daysAutonomy)) || parseFloat(daysAutonomy) <= 0;
+                  const dwellingTypeInvalid = !dwellingType;
+
+                  if (!hasValidApplianceEntry) {
+                    console.log("DEBUG: Botón deshabilitado - No hay electrodomésticos válidos para Off-Grid.");
+                  }
+                  if (autonomyInvalid) {
+                    console.log("DEBUG: Botón deshabilitado - Días de autonomía inválidos.");
+                  }
+                  if (dwellingTypeInvalid) {
+                    console.log("DEBUG: Botón deshabilitado - Tipo de vivienda no seleccionado.");
+                  }
+
+                  return !hasValidApplianceEntry || autonomyInvalid || dwellingTypeInvalid;
+              }
+          };
+
+          // Function to generate PDF - Wrapped with useCallback
+          const generatePdfPresentation = useCallback(async () => {
+            if (!dimensioningResult) {
+              showMessage('error', 'Por favor, dimensione un sistema primero para generar la presentación.');
+              console.error("DEBUG: dimensioningResult es null, no se puede generar el PDF.");
+              return;
+            }
+
+            if (!arePdfLibsLoaded) {
+              showMessage('error', 'Las librerías necesarias para generar el PDF no se han cargado completamente. Por favor, espere o recargue la página.');
+              console.error("DEBUG: Librerías html2canvas o jspdf no encontradas en el objeto window (arePdfLibsLoaded es false).");
+              return;
+            }
+            
+            if (isLogoLoading) {
+                showMessage('warning', 'El logo aún se está cargando. Por favor, espere un momento y vuelva a intentar.');
+                console.warn("DEBUG: Logo aún cargando, no se puede generar el PDF.");
+                return;
+            }
+
+
+            setIsGeneratingPdf(true);
+            console.log("DEBUG: Iniciando generación de PDF...");
+
+            try {
+              const { jsPDF } = window.jspdf;
+              const pdf = new jsPDF('p', 'mm', 'a4'); // Portrait, millimeters, A4 size
+
+              const pageTotalWidth = pdf.internal.pageSize.getWidth();
+              const pageTotalHeight = pdf.internal.pageSize.getHeight();
+
+              // Desired margins in mm
+              const margin = 10; // 1 cm for all sides (for the border)
+              const innerPadding = 10; // 1 cm padding from the border to the content
+
+              const contentAreaX = margin + innerPadding; // Left boundary of the content area
+              const contentAreaWidth = pageTotalWidth - (2 * margin) - (2 * innerPadding); // Usable width inside the border with padding
+
+              let currentY = margin + innerPadding; // Start Y position from the top margin + inner padding
+
+              // Function to draw the rounded rectangle border
+              const drawRoundedRectBorder = () => {
+                  pdf.setDrawColor('#FFD700'); // Border color (golden)
+                  pdf.setLineWidth(0.5); // Border thickness
+                  const rectX = margin;
+                  const rectY = margin;
+                  const rectWidth = pageTotalWidth - (2 * margin);
+                  const rectHeight = pageTotalHeight - (2 * margin);
+                  const cornerRadius = 5; // Rounded corners radius
+                  pdf.roundedRect(rectX, rectY, rectWidth, rectHeight, cornerRadius, cornerRadius, 'S'); // 'S' for stroke
+              };
+
+              // Helper function to add text and manage page breaks
+              const addText = (text, x, y, options = {}) => {
+                  const { fontSize = 12, isBold = false, color = '#333', align = 'left', spacingBefore = 0, isUnderlined = false } = options;
+                  pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+                  pdf.setFontSize(fontSize);
+                  pdf.setTextColor(color);
+
+                  // Adjust currentY for spacingBefore, considering the inner padding
+                  let nextYConsidered = currentY + spacingBefore;
+                  if (nextYConsidered > pageTotalHeight - margin - innerPadding) { // Check if new page is needed for spacingBefore
+                      pdf.addPage();
+                      drawRoundedRectBorder(); // Draw border on new page
+                      currentY = margin + innerPadding; // Reset Y to top of content area on new page
+                  } else {
+                      currentY += spacingBefore;
+                  }
+
+                  const splitText = pdf.splitTextToSize(text, contentAreaWidth); // Use contentAreaWidth for splitting
+                  let textHeight = splitText.length * (fontSize * 0.35);
+
+                  // Check if content fits on current page, if not, add new page
+                  if (currentY + textHeight > pageTotalHeight - margin - innerPadding) { // Check against bottom inner padding
+                      pdf.addPage();
+                      drawRoundedRectBorder(); // Draw border on new page
+                      currentY = margin + innerPadding; // Reset Y to top of content area on new page
+                  }
+                  
+                  // Calculate X position for alignment within the content area
+                  let actualX = x; // Use the provided x directly for positioning
+                  if (align === 'center') {
+                      // Calculate textWidth based on the first line of splitText for centering
+                      const textWidth = pdf.getStringUnitWidth(splitText[0]) * fontSize / pdf.internal.scaleFactor;
+                      actualX = x - (textWidth / 2);
+                  } else if (align === 'right') {
+                      // Calculate textWidth based on the first line of splitText for right alignment
+                      const textWidth = pdf.getStringUnitWidth(splitText[0]) * fontSize / pdf.internal.scaleFactor;
+                      actualX = x - textWidth;
+                  }
+
+                  pdf.text(splitText, actualX, currentY);
+
+                  if (isUnderlined) {
+                      // For underlining, use the width of the *original* text to ensure full underline if it was a single logical unit
+                      const originalTextWidth = pdf.getStringUnitWidth(text) * fontSize / pdf.internal.scaleFactor;
+                      const underlineY = currentY + (fontSize * 0.1); // Position of the underline
+                      let underlineX = actualX; // Start underline from the actual text X position
+                      pdf.line(underlineX, underlineY, underlineX + originalTextWidth, underlineY);
+                  }
+
+                  currentY += textHeight + (fontSize * 0.1);
+                  return currentY;
+              };
+
+              // Draw border on the first page
+              drawRoundedRectBorder();
+
+              // Add Logo (using fetched Base64 or a fallback text)
+              if (pdfLogoBase64) {
+                  const logoWidth = 50; // mm
+                  const logoHeight = (50 * 75) / 150; // Maintain aspect ratio for 150x75 placeholder or adjust for actual logo if known
+                  const logoX = contentAreaX + (contentAreaWidth - logoWidth) / 2; // Center logo within content area
+                  pdf.addImage(pdfLogoBase64, 'JPEG', logoX, currentY, logoWidth, logoHeight); // Assuming JPEG based on the URL
+                  currentY += logoHeight + 10; // Add space after logo
+              } else {
+                  currentY = addText("Logo no disponible (Error de carga)", pageTotalWidth / 2, currentY, { fontSize: 14, color: '#999', align: 'center', isBold: true });
+                  currentY += 10; // Add space after fallback text
+              }
+
+
+              // Add Main Title (centered on the page)
+              currentY = addText(
+                  "Presentación de Dimensionamiento Fotovoltaico",
+                  contentAreaX + (contentAreaWidth / 2), // X coordinate is the center of the content area
+                  currentY,
+                  { fontSize: 36, isBold: true, color: '#FFD700', align: 'center', spacingBefore: 10, isUnderlined: false }
+              );
+              currentY += 5; // Extra space after main title, further reduced for compactness
+
+              // Add Client Details
+              currentY = addText("Datos del Cliente:", contentAreaX, currentY, { fontSize: 22, isBold: true, color: '#C0392B', spacingBefore: 5 }); // Reduced spacingBefore
+              
+              // Client Name and Address in a 2-column grid
+              currentY = addText(`Nombre: ${dimensioningResult.client.name}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              currentY = addText(`Dirección: ${dimensioningResult.client.address}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+
+              // Province and Locality in a 2-column grid
+              currentY = addText(`Provincia: ${dimensioningResult.client.provincia}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              currentY = addText(`Localidad: ${dimensioningResult.client.localidad}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+
+              currentY = addText(`Latitud: ${latitude}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              currentY = addText(`Longitud: ${longitude}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              
+              if (dimensioningResult.systemType === 'off-grid') {
+                currentY = addText(`Tipo de Vivienda: ${dimensioningResult.dwellingType === 'daily' ? 'Uso Diario' : 'Fin de Semana'}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              }
+              currentY += 8; // Reduced space after section
+
+              // Add Location Image if available
+              if (locationImagePreview) {
+                pdf.addPage(); // Add a new page for the image
+                drawRoundedRectBorder();
+                currentY = margin + innerPadding; // Reset Y for the new page
+
+                currentY = addText("Imagen de la Ubicación:", contentAreaX, currentY, { fontSize: 22, isBold: true, color: '#C0392B', spacingBefore: 5 });
+                
+                // Calculate image dimensions to fit within content area
+                const img = new Image();
+                img.src = locationImagePreview;
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = (e) => {
+                        console.error("Error loading image for PDF:", e);
+                        reject(new Error("Failed to load location image for PDF."));
+                    };
+                });
+
+                const imgAspectRatio = img.width / img.height;
+                let imgWidth = contentAreaWidth;
+                let imgHeight = contentAreaWidth / imgAspectRatio;
+
+                // If height exceeds available space, scale down
+                if (imgHeight > (pageTotalHeight - currentY - margin - innerPadding)) {
+                    imgHeight = pageTotalHeight - currentY - margin - innerPadding;
+                    imgWidth = imgHeight * imgAspectRatio;
+                }
+
+                const imgX = contentAreaX + (contentAreaWidth - imgWidth) / 2; // Center horizontally
+                pdf.addImage(locationImagePreview, 'JPEG', imgX, currentY + 5, imgWidth, imgHeight); // Add 5mm spacing
+                currentY += imgHeight + 10; // Adjust Y after image
+              }
+
+
+              // Add System Details
+              currentY = addText("Detalles del Sistema Propuesto:", contentAreaX, currentY, { fontSize: 22, isBold: true, color: '#C0392B', spacingBefore: 5 }); // Reduced spacingBefore
+              currentY = addText(`Tipo de Sistema: ${dimensioningResult.systemType === 'on-grid' ? 'On-Grid (Conectado a Red)' : 'Off-Grid (Aislado)'}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              currentY = addText(`Tipo de Fase: ${dimensioningResult.systemPhase === 'monofasico' ? 'Monofásico' : 'Trifásico'}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              currentY = addText(`Horas de Sol Pico (PSH) Obtenidas: ${dimensioningResult.fetchedPeakSunHours.toFixed(2)} horas/día`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              currentY = addText(`Potencia de Array PV Requerida: ${dimensioningResult.requiredPVArrayWp} Wp`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              currentY = addText(`Cantidad de Paneles (550Wp c/u): ${dimensioningResult.numberOfPanels} unidades`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+              
+              // Display selected inverter details
+              if (dimensioningResult.selectedInverter) {
+                  const inv = dimensioningResult.selectedInverter;
+                  currentY = addText(`Inversor Seleccionado: ${inv.power_kW} kW, ${inv.voltage_ac_V}V AC ${inv.phase === 'monofasico' ? 'Monofásico' : 'Trifásico'}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                  if (inv.voltage_dc_V) {
+                      currentY = addText(`  (Voltaje DC: ${inv.voltage_dc_V}V)`, contentAreaX, currentY, { fontSize: 10, align: 'left', color: '#666' });
+                  }
+                  if (inv.parallelizable) {
+                      currentY = addText(`  (Paralelizable: Sí)`, contentAreaX, currentY, { fontSize: 10, align: 'left', color: '#666' });
+                  }
+                  if (inv.quantity > 1) {
+                      currentY = addText(`  (Cantidad: ${inv.quantity} unidades)`, contentAreaX, currentY, { fontSize: 10, align: 'left', color: '#666' });
+                  }
+              }
+
+              if (dimensioningResult.systemType === 'off-grid') {
+                  currentY = addText(`Consumo Diario Total: ${dimensioningResult.totalDailyConsumptionWh.toFixed(2)} Wh/día`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                  currentY = addText(`Días de Autonomía: ${dimensioningResult.daysAutonomy} días`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                  currentY = addText(`Tipo de Vivienda: ${dimensioningResult.dwellingType === 'daily' ? 'Uso Diario' : 'Fin de Semana'}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                  
+                  // Display selected battery details
+                  if (dimensioningResult.selectedBattery) {
+                      const bat = dimensioningResult.selectedBattery;
+                      currentY = addText(`Batería Seleccionada: ${bat.material}, ${bat.voltage_V}V, ${bat.capacity_Ah}Ah (${bat.capacity_kWh} kWh)`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                      if (bat.quantity > 1) {
+                          currentY = addText(`  (Cantidad: ${bat.quantity} unidades)`, contentAreaX, currentY, { fontSize: 10, align: 'left', color: '#666' });
+                      }
+                  }
+              }
+              currentY += 8; // Reduced space after section
+
+              // Add disclaimer
+              currentY = addText("*Este es un cálculo estimado. Para un dimensionamiento preciso, póngase en contacto con nosotros.", contentAreaX, currentY, { fontSize: 10, color: '#666', align: 'left' });
+
+              // Add On-Grid specific additional components if systemType is 'on-grid'
+              if (dimensioningResult.systemType === 'on-grid') {
+                  pdf.addPage(); // New page for on-grid specific details
+                  drawRoundedRectBorder();
+                  currentY = margin + innerPadding;
+
+                  currentY = addText("Componentes adicionales para instalaciones fotovoltaicas On-Grid:", contentAreaX, currentY, { fontSize: 18, isBold: true, color: '#E74C3C', spacingBefore: 10 });
+                  currentY = addText("Además de los paneles solares y el inversor, una instalación on-grid requiere cableado eléctrico, protecciones (como disyuntores y protectores de sobretensión), una estructura de montaje para los paneles, un medidor bidireccional (para medir la energía que entra y sale de la red), y cumplir con las normativas locales, incluyendo la notificación al operador de red.", contentAreaX, currentY, { fontSize: 12, align: 'left', spacingBefore: 5 });
+
+                  currentY = addText("Componentes adicionales y consideraciones:", contentAreaX, currentY, { fontSize: 16, isBold: true, color: '#C0392B', spacingBefore: 8 });
+                  
+                  currentY = addText("Cableado eléctrico:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Se necesita cableado adecuado para conectar los paneles al inversor y al sistema eléctrico de la casa.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+                  
+                  currentY = addText("Protecciones:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Dispositivos como interruptores termomagnéticos y protectores de sobretensión son esenciales para la seguridad del sistema y la protección contra fallas.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+                  
+                  currentY = addText("Estructura de montaje:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Se requiere una estructura para sostener los paneles solares de forma segura y orientada correctamente.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+                  
+                  currentY = addText("Medidor bidireccional:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Este medidor registra tanto la energía consumida de la red como la energía que se inyecta a la red.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Normativa local:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Es crucial cumplir con las regulaciones y requisitos de la zona, incluyendo la certificación de la instalación y la notificación al operador de red.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Señalización:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Se deben colocar rótulos y señalizaciones claras para indicar que se trata de una instalación fotovoltaica, según la normativa.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Seguidores solares (opcional):", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("En algunos casos, se pueden utilizar seguidores solares para optimizar la producción de energía, aunque no son esenciales.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Optimizadores de potencia (opcional):", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Estos dispositivos pueden mejorar el rendimiento del sistema, especialmente en instalaciones con sombras parciales.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Conexión a tierra:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Una buena conexión a tierra es fundamental para la seguridad del sistema.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("En resumen, una instalación on-grid implica más que solo paneles e inversor. Se necesita un conjunto de componentes y consideraciones para asegurar una instalación segura, eficiente y conforme a la normativa.", contentAreaX, currentY, { fontSize: 12, align: 'left', spacingBefore: 8 });
+              }
+
+              // Add Off-Grid specific additional components if systemType is 'off-grid'
+              if (dimensioningResult.systemType === 'off-grid') {
+                  pdf.addPage(); // New page for off-grid specific details
+                  drawRoundedRectBorder();
+                  currentY = margin + innerPadding;
+
+                  currentY = addText("Componentes adicionales para instalaciones fotovoltaicas Off-Grid:", contentAreaX, currentY, { fontSize: 18, isBold: true, color: '#E74C3C', spacingBefore: 10 });
+                  currentY = addText("Además de paneles, inversor y baterías, una instalación solar fotovoltaica aislada o \"off-grid\" requiere otros componentes esenciales para su correcto funcionamiento. Estos incluyen un regulador de carga, estructuras de montaje y cableado adecuado, además de posiblemente un sistema de respaldo.", contentAreaX, currentY, { fontSize: 12, align: 'left', spacingBefore: 5 });
+
+                  currentY = addText("Componentes adicionales:", contentAreaX, currentY, { fontSize: 16, isBold: true, color: '#C0392B', spacingBefore: 8 });
+                  
+                  currentY = addText("Regulador de carga:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Este dispositivo es crucial para proteger las baterías de sobrecarga o descarga excesiva, asegurando su vida útil y eficiencia.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+                  
+                  currentY = addText("Estructuras de montaje:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Estas estructuras proporcionan el soporte necesario para los paneles solares, permitiendo una correcta orientación e inclinación para una óptima captación de energía solar.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+                  
+                  currentY = addText("Cableado:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Se necesita un cableado específico para conectar los paneles, el regulador, las baterías y el inversor, garantizando una correcta transmisión de la energía y minimizando pérdidas.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+                  
+                  currentY = addText("Sistema de respaldo:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("En áreas con alta variabilidad de clima o para garantizar un suministro continuo, un sistema de respaldo como un generador a gasolina o diésel puede ser necesario para complementar la energía solar.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Consideraciones adicionales:", contentAreaX, currentY, { fontSize: 16, isBold: true, color: '#C0392B', spacingBefore: 8 });
+
+                  currentY = addText("Dimensionamiento:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Un dimensionamiento adecuado de todos los componentes es fundamental para asegurar la autonomía del sistema y cubrir la demanda energética, especialmente durante periodos de baja radiación solar.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Calidad de los componentes:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Es recomendable utilizar componentes de marcas reconocidas y de alta calidad para asegurar la durabilidad y eficiencia del sistema a largo plazo.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Planos y documentación:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("Es importante contar con planos detallados de la instalación, especificando la ubicación de cada componente, sus características y la forma en que se conectan.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("Seguridad:", contentAreaX + 5, currentY, { fontSize: 14, isBold: true, color: '#333', spacingBefore: 5 });
+                  currentY = addText("La instalación debe cumplir con todas las normativas de seguridad eléctrica y de construcción para evitar riesgos de accidentes.", contentAreaX + 10, currentY, { fontSize: 12, align: 'left', spacingBefore: 3 });
+
+                  currentY = addText("En resumen, un sistema fotovoltaico off-grid requiere una planificación cuidadosa y la selección de componentes de calidad para garantizar su correcto funcionamiento y autonomía.", contentAreaX, currentY, { fontSize: 12, align: 'left', spacingBefore: 8 });
+              }
+
+
+              pdf.save(`Dimensionamiento_Fotovoltaico_${clientName.replace(/\s/g, '_')}.pdf`);
+              console.log("DEBUG: PDF guardado exitosamente.");
+
+            } catch (error) {
+              console.error("DEBUG: Error al generar el PDF:", error);
+              showMessage('error', `Error al generar el PDF: ${error.message}. Por favor, intente de nuevo. Revise la consola del navegador para más detalles.`);
+            } finally {
+              setIsGeneratingPdf(false);
+              console.log("DEBUG: Generación de PDF finalizada.");
+            }
+          }, [dimensioningResult, arePdfLibsLoaded, isLogoLoading, clientName, latitude, longitude, estimatedAnnualEnergySaved, estimatedAnnualCo2Avoided, showMessage, locationImagePreview]);
+
+
+          // Function to dimension PV system
+          const dimensionPVSystem = async () => {
+            console.log("DEBUG: Entering dimensionPVSystem function.");
+            setIsDimensioning(true);
+            setDimensioningResult(null); // Clear previous results
+            setAppMessage({ type: '', text: '' }); // Clear any previous messages
+
+            // --- DEBUGGING: Log all relevant input states ---
+            console.log("DEBUG: Client Name (state):", clientName);
+            console.log("DEBUG: Client Address (state):", clientAddress);
+            console.log("DEBUG: Selected Province ID (state):", selectedProvinceId);
+            console.log("DEBUG: Selected Locality ID (state):", selectedLocalidadId);
+            console.log("DEBUG: Latitude (state):", latitude);
+            console.log("DEBUG: Longitud (state):", longitude);
+            console.log("DEBUG: System Type (state):", systemType);
+            console.log("DEBUG: System Phase (state):", systemPhase);
+            console.log("DEBUG: Bimonthly Consumption (state):", bimonthlyConsumption);
+            console.log("DEBUG: Appliances (state):", appliances);
+            console.log("DEBUG: Days Autonomy (state):", daysAutonomy);
+            console.log("DEBUG: Dwelling Type (state):", dwellingType);
+            // --- END DEBUGGING ---
+
+            try {
+              let isValidInput = true;
+
+              // Validate client details
+              if (!clientName || !clientAddress || !selectedLocalidadId || !selectedProvinceId) {
+                showMessage('error', 'Por favor, complete todos los datos del cliente (incluyendo Nombre, Dirección, Provincia y Localidad).');
+                isValidInput = false;
+                console.log("DEBUG: Validation failed: Client details missing.");
+              }
+
+              const lat = parseFloat(latitude);
+              const lon = parseFloat(longitude);
+              console.log("DEBUG: Parsed Latitude:", lat, "Parsed Longitude:", lon);
+
+              if (isNaN(lat) || isNaN(lon)) {
+                showMessage('error', 'Por favor, ingrese valores válidos para latitud y longitud.');
+                isValidInput = false;
+                console.log("DEBUG: Validation failed: Invalid latitude or longitude.");
+              } else if (lat < -90 || lat > 90 || lon < -180 || lon > 180) { // Added range validation
+                showMessage('error', 'Por favor, ingrese valores de latitud entre -90 y 90, y longitud entre -180 y 180.');
+                isValidInput = false;
+                console.log("DEBUG: Validation failed: Latitude or longitude out of range.");
+              }
+              console.log("DEBUG: Coordinates validation isValidInput:", isValidInput, "Lat:", lat, "Lon:", lon);
+
+              let totalAnnualConsumptionKWh = 0;
+              let totalDailyConsumptionWh = 0; // For off-grid calculation
+
+              if (systemType === 'on-grid') {
+                // Validate bimonthly consumption
+                const consumptionValues = Object.values(bimonthlyConsumption).map(val => parseFloat(val));
+                if (consumptionValues.some(isNaN) || consumptionValues.some(val => val < 0)) {
+                  showMessage('error', 'Por favor, ingrese consumos bimestrales válidos y no negativos.');
+                  isValidInput = false;
+                  console.log("DEBUG: Validation failed: Invalid bimonthly consumption.");
+                } else {
+                  totalAnnualConsumptionKWh = consumptionValues.reduce((sum, val) => sum + val, 0) * 2; // Multiply by 2 for annual
+                  console.log("DEBUG: Total Annual Consumption (On-Grid):", totalAnnualConsumptionKWh);
+                }
+              } else { // off-grid
+                // Validate appliances
+                if (appliances.length === 0 || !appliances.some(app => app.name.trim() !== '')) {
+                  showMessage('error', 'Por favor, agregue al menos un electrodoméstico para el dimensionamiento Off-Grid.');
+                  isValidInput = false;
+                  console.log("DEBUG: Validation failed: No appliances for Off-Grid.");
+                } else {
+                  let dailyConsumptionWh = 0;
+                  for (const app of appliances) {
+                    const wattage = parseFloat(app.wattage);
+                    const hours = parseFloat(app.hours);
+                    const quantity = parseInt(app.quantity); // Get quantity
+                    if (app.name.trim() === '' || isNaN(wattage) || wattage <= 0 || isNaN(hours) || hours < 0 || isNaN(quantity) || quantity <= 0) {
+                      showMessage('error', 'Por favor, complete todos los campos de electrodomésticos con valores válidos y positivos (la potencia y cantidad deben ser > 0, las horas >= 0).');
+                      isValidInput = false;
+                      console.log("DEBUG: Validation failed: Invalid appliance data. Appliance:", app);
+                      break;
+                    }
+                    dailyConsumptionWh += wattage * hours * quantity; // Multiply by quantity
+                  }
+                  totalDailyConsumptionWh = dailyConsumptionWh;
+                  totalAnnualConsumptionKWh = (totalDailyConsumptionWh * 365) / 1000; // Convert Wh to kWh for annual
+                  console.log("DEBUG: Total Daily Consumption (Off-Grid):", totalDailyConsumptionWh);
+                  console.log("DEBUG: Total Annual Consumption (Off-Grid):", totalAnnualConsumptionKWh);
+                }
+
+                // Validate days of autonomy and dwelling type
+                const parsedDaysAutonomy = parseFloat(daysAutonomy);
+                if (isNaN(parsedDaysAutonomy) || parsedDaysAutonomy <= 0) {
+                  showMessage('error', 'Por favor, ingrese un número válido de días de autonomía (mayor que 0).');
+                  isValidInput = false;
+                  console.log("DEBUG: Validation failed: Invalid days of autonomy.");
+                }
+                if (!dwellingType) {
+                  showMessage('error', 'Por favor, seleccione el tipo de vivienda (Uso Diario o Fin de Semana).');
+                  isValidInput = false;
+                  console.log("DEBUG: Validation failed: Dwelling type missing.");
+                }
+              }
+
+              // Early exit if any input validation failed
+              if (!isValidInput) {
+                  setIsDimensioning(false);
+                  console.log("DEBUG: isValidInput es false, saliendo de dimensionPVSystem.");
+                  return;
+              }
+              
+              const peakSunHours = await fetchSolarIrradiance(lat, lon);
+              console.log("DEBUG: Peak Sun Hours fetched:", peakSunHours);
+
+              if (!Number.isFinite(peakSunHours) || peakSunHours <= 0) {
+                  showMessage('error', 'Las Horas de Sol Pico (HSP) obtenidas no son válidas o son cero. No se puede calcular el dimensionamiento.');
+                  setIsDimensioning(false);
+                  console.log("DEBUG: Validation failed: peakSunHours is invalid or zero.");
+                  return;
+              }
+
+              // Assuming a general system efficiency (e.g., 75-80% for PV)
+              const systemEfficiency = 0.75; // 75% efficiency
+
+              // Required PV Array Power (Wp)
+              const requiredPVArrayWp = (totalAnnualConsumptionKWh * 1000) / (365 * peakSunHours * systemEfficiency);
+              console.log("DEBUG: Required PV Array Wp:", requiredPVArrayWp);
+
+              // Assuming a standard panel wattage (e.g., 550 Wp)
+              const standardPanelWattage = 550; // Wp
+              const numberOfPanels = Math.ceil(requiredPVArrayWp / standardPanelWattage);
+              console.log("DEBUG: Number of Panels:", numberOfPanels);
+
+              // --- Inverter Selection Logic ---
+              const targetInverterCapacityKW = requiredPVArrayWp / 1000; // Convert Wp to kW
+              let selectedInverter = null;
+
+              // Filter inverters by system type and phase
+              const filteredInverters = inverterOptions.filter(inv => 
+                  inv.type === systemType && inv.phase === systemPhase
+              );
+
+              // Sort by power_kW to find the smallest suitable inverter
+              filteredInverters.sort((a, b) => a.power_kW - b.power_kW);
+
+              // Try to find a single inverter that meets the target capacity
+              for (const inv of filteredInverters) {
+                  if (inv.power_kW >= targetInverterCapacityKW) {
+                      selectedInverter = { ...inv, quantity: 1 };
+                      break;
+                  }
+              }
+
+              // If no single inverter is sufficient, try to combine parallelizable ones
+              if (!selectedInverter && systemType === 'off-grid') { // Only off-grid inverters are marked parallelizable in the data
+                  const parallelizableInverters = filteredInverters.filter(inv => inv.parallelizable);
+                  if (parallelizableInverters.length > 0) {
+                      const largestParallelizable = parallelizableInverters[parallelizableInverters.length - 1]; // Get the largest
+                      const quantity = Math.ceil(targetInverterCapacityKW / largestParallelizable.power_kW);
+                      selectedInverter = { ...largestParallelizable, quantity: quantity, power_kW: largestParallelizable.power_kW * quantity };
+                  }
+              }
+
+              if (!selectedInverter) {
+                  showMessage('error', 'No se encontró un inversor adecuado para la potencia y tipo de sistema requeridos. Por favor, ajuste los parámetros o consulte a un especialista.');
+                  setIsDimensioning(false);
+                  return;
+              }
+              console.log("DEBUG: Selected Inverter:", selectedInverter);
+
+
+              // --- Battery Selection Logic (for off-grid only) ---
+              let selectedBattery = null;
+              if (systemType === 'off-grid') {
+                  const requiredBatteryEnergyWh = totalDailyConsumptionWh * parseFloat(daysAutonomy);
+                  console.log("DEBUG: Required Battery Energy (Wh):", requiredBatteryEnergyWh);
+
+                  // Sort batteries by kWh capacity
+                  batteryOptions.sort((a, b) => a.capacity_kWh - b.capacity_kWh);
+
+                  // Find the smallest combination of batteries
+                  for (const battery of batteryOptions) {
+                      const quantity = Math.ceil(requiredBatteryEnergyWh / (battery.capacity_kWh * 1000));
+                      if (quantity > 0) {
+                          selectedBattery = { 
+                              ...battery, 
+                              quantity: quantity,
+                              capacity_Ah: battery.capacity_Ah * quantity,
+                              capacity_kWh: battery.capacity_kWh * quantity
+                          };
+                          break; // Found the smallest combination
+                      }
+                  }
+
+                  if (!selectedBattery) {
+                      showMessage('error', 'No se encontraron baterías adecuadas para la autonomía y consumo requeridos. Por favor, ajuste los parámetros o consulte a un especialista.');
+                      setIsDimensioning(false);
+                      return;
+                  }
+                  console.log("DEBUG: Selected Battery:", selectedBattery);
+              }
+
+
+              // Estimated Annual Production (kWh)
+              const estimatedAnnualProductionKWh = (numberOfPanels * standardPanelWattage * peakSunHours * 365 * systemEfficiency) / 1000;
+              console.log("DEBUG: Estimated Annual Production (kWh):", estimatedAnnualProductionKWh);
+
+              // CO2 avoidance calculation
+              const co2PerKWh = 0.5; // kg CO2 per kWh (average for grid electricity)
+              const calculatedAnnualCo2Avoided = estimatedAnnualProductionKWh * co2PerKWh;
+              console.log("DEBUG: Calculated Annual CO2 Avoided:", calculatedAnnualCo2Avoided);
+
+              // Set the dimensioning result
+              const newDimensioningResult = {
+                client: {
+                  name: clientName,
+                  address: clientAddress,
+                  localidad: selectedLocalidadName,
+                  provincia: selectedProvinceName
+                },
+                systemType: systemType,
+                systemPhase: systemPhase,
+                fetchedPeakSunHours: peakSunHours,
+                requiredPVArrayWp: requiredPVArrayWp.toFixed(2),
+                numberOfPanels: numberOfPanels,
+                estimatedAnnualProductionKWh: estimatedAnnualProductionKWh,
+                calculatedAnnualCo2Avoided: calculatedAnnualCo2Avoided,
+                totalDailyConsumptionWh: totalDailyConsumptionWh, // Only for off-grid
+                daysAutonomy: parseFloat(daysAutonomy), // Only for off-grid
+                dwellingType: dwellingType, // Only for off-grid
+                selectedInverter: selectedInverter, // Add selected inverter details
+                selectedBattery: selectedBattery // Add selected battery details
+              };
+              console.log("DEBUG: Final dimensioningResult object before setting state:", newDimensioningResult);
+              setDimensioningResult(newDimensioningResult);
+              console.log("DEBUG: Dimensioning Result set successfully.");
+
+            } catch (error) {
+              console.error("DEBUG: Error inesperado durante el dimensionamiento:", error);
+              showMessage('error', `Error inesperado al calcular el sistema: ${error.message}. Por favor, intente de nuevo. Revise la consola del navegador para más detalles.`);
+            } finally {
+              setIsDimensioning(false);
+              console.log("DEBUG: Dimensioning process finished.");
+            }
+          };
+
+
+          return (
+            <div className="min-h-screen bg-black text-white font-inter p-4 sm:p-8 flex items-center justify-center">
+              <div className="bg-gray-900 rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-2xl border border-yellow-500 transform transition-transform duration-500 hover:scale-105">
+                {/* Logo */}
+                <div className="flex justify-center mb-6">
+                  <img
+                    src={REDERAR_LOGO_DISPLAY_URL} // Usando la URL del logo para la visualización
+                    alt="Logo de REDERAR Energías Renovables con colores de la bandera Argentina"
+                    className="w-48 h-auto rounded-lg"
+                    onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/200x100/ADD8E6/FFFFFF?text=REDERAR' }} // Fallback
+                  />
+                </div>
+
+                <h1 className="text-3xl sm:text-4xl font-bold text-center text-yellow-400 mb-6 drop-shadow-lg">
+                  <i className="fas fa-sun mr-3"></i> Dimensionador Inicial Sistemas Fotovoltaicos
+                </h1>
+
+                {/* Custom Message Display */}
+                {appMessage.text && (
+                  <div className={`mb-4 p-3 rounded-lg text-center font-semibold ${
+                    appMessage.type === 'error' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'
+                  }`}>
+                    {appMessage.text}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                  {/* Card: Energía Anual Generada */}
+                  <div className="bg-gray-800 rounded-lg p-4 shadow-md flex flex-col items-center justify-center border border-gray-700">
+                    <p className="text-sm font-semibold text-gray-400 text-center">Energía Anual Generada</p>
+                    <p className="text-3xl font-bold text-lime-400 mt-1">
+                      {estimatedAnnualEnergySaved.toFixed(2)} kWh
+                    </p>
+                  </div>
+
+                  {/* Card: CO2 Ahorrado Anual Estimado */}
+                  <div className="bg-gray-800 rounded-lg p-4 shadow-md flex flex-col items-center justify-center border border-gray-700">
+                    <p className="text-sm font-semibold text-gray-400">CO2 Ahorrado Anual Estimado</p>
+                    <p className="text-3xl font-bold text-teal-400 mt-1">
+                      {estimatedAnnualCo2Avoided.toFixed(2)} kg
+                    </p>
+                  </div>
+                </div>
+
+                {/* PV System Dimensioning Feature Button */}
+                <button
+                  onClick={() => setShowPVDimensioning(!showPVDimensioning)}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-75 flex items-center justify-center mt-4"
+                >
+                  <i className="fas fa-calculator mr-3"></i> {showPVDimensioning ? 'Ocultar Dimensionador' : 'Dimensionar Sistema Fotovoltaico'}
+                </button>
+
+                {/* PV System Dimensioning Input and Output */}
+                {showPVDimensioning && (
+                  <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                    <h3 className="text-xl font-bold text-yellow-400 mb-4">Datos del Cliente y Dimensionamiento PV</h3>
+                    {/* Client Details Inputs - Now in a 2-column layout */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label htmlFor="clientName" className="block text-gray-300 text-sm font-bold mb-2">
+                          Nombre del Cliente:
+                        </label>
+                        <input
+                          type="text"
+                          id="clientName"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
+                          placeholder="Ej: Juan Pérez"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="clientAddress" className="block text-gray-300 text-sm font-bold mb-2">
+                          Dirección:
+                        </label>
+                        <input
+                          type="text"
+                          id="clientAddress"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={clientAddress}
+                          onChange={(e) => setClientAddress(e.target.value)}
+                          placeholder="Ej: Av. Principal 123"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label htmlFor="clientProvincia" className="block text-gray-300 text-sm font-bold mb-2">
+                          Provincia:
+                        </label>
+                        <select
+                          id="clientProvincia"
+                          className="shadow border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={selectedProvinceId}
+                          onChange={(e) => {
+                            const selectedOption = e.target.options[e.target.selectedIndex];
+                            setSelectedProvinceId(e.target.value);
+                            setSelectedProvinceName(selectedOption.text);
+                          }}
+                          disabled={isLoadingProvinces}
+                        >
+                          <option value="">
+                            {isLoadingProvinces ? 'Cargando provincias...' : (provinces.length === 0 && !isLoadingProvinces ? 'Error al cargar provincias' : 'Seleccione una provincia')}
+                          </option>
+                          {provinces.map(province => (
+                            <option key={province.id} value={province.id}>{province.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="clientLocalidad" className="block text-gray-300 text-sm font-bold mb-2">
+                          Localidad:
+                        </label>
+                        <select
+                          id="clientLocalidad"
+                          className="shadow border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={selectedLocalidadId}
+                          onChange={(e) => {
+                            const selectedOption = e.target.options[e.target.selectedIndex];
+                            setSelectedLocalidadId(e.target.value);
+                            setSelectedLocalidadName(selectedOption.text);
+                          }}
+                          disabled={!selectedProvinceId || isLoadingLocalities}
+                        >
+                          <option value="">
+                            {!selectedProvinceId ? 'Seleccione una provincia primero' : (isLoadingLocalities ? 'Cargando localidades...' : (localities.length === 0 && !isLoadingLocalities ? 'Error al cargar localidades o no hay localidades' : 'Seleccione una localidad'))}
+                          </option>
+                          {localities.map(localidad => (
+                            <option key={localidad.id} value={localidad.id}>{localidad.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    {/* Coordenadas remain in a 2-column grid */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label htmlFor="latitude" className="block text-gray-300 text-sm font-bold mb-2">
+                          Latitud:
+                        </label>
+                        <input
+                          type="number"
+                          id="latitude"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={latitude}
+                          onChange={(e) => setLatitude(e.target.value)}
+                          placeholder="Ej: -32.0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="longitude" className="block text-gray-300 text-sm font-bold mb-2">
+                          Longitud:
+                        </label>
+                        <input
+                          type="number"
+                          id="longitude"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={longitude}
+                          onChange={(e) => setLongitude(e.target.value)}
+                          placeholder="Ej: -60.0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-gray-400 text-xs mt-1 mb-2">
+                      Puede obtener la latitud y longitud de la dirección del cliente utilizando Google Maps.
+                      Busque la dirección, haga clic derecho en el mapa y seleccione "¿Qué hay aquí?".
+                      Las coordenadas aparecerán en la parte inferior.
+                    </p>
+                    <p className="text-gray-400 text-xs mb-4">
+                      <a href="https://www.google.com/maps/place/Paran%C3%A1,+Entre+R%C3%ADos/@-31.7473185,-60.5149631,12z/data=!3m1!4b1!4m6!3m5!1s0x95b44df2b9835231:0x554ebde0aa5cfa9a!8m2!3d-31.7413197!4d-60.5115471!16zL2m/MDM2eWt2?entry=ttu&g_ep=EgoyMDI1MDcwOS4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                        Buscar dirección en Google Maps
+                      </a>
+                    </p>
+
+                    {/* Location Image Upload */}
+                    <div className="mb-4">
+                        <label htmlFor="locationImage" className="block text-gray-300 text-sm font-bold mb-2">
+                            Subir Foto de la Ubicación (Opcional):
+                        </label>
+                        <input
+                            type="file"
+                            id="locationImage"
+                            accept="image/*"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                            onChange={handleLocationImageUpload}
+                        />
+                        {locationImagePreview && (
+                            <div className="mt-4 relative">
+                                <img
+                                    src={locationImagePreview}
+                                    alt="Vista previa de la imagen de la ubicación"
+                                    className="max-w-full h-auto rounded-lg border border-gray-600"
+                                    onError={(e) => {
+                                        console.error("ERROR: Failed to load image preview:", e);
+                                        e.target.onerror = null; // Prevent infinite loop
+                                        e.target.src = 'https://placehold.co/200x150/FF0000/FFFFFF?text=Error+Carga+Imagen'; // Fallback to an error placeholder
+                                        showMessage('error', 'Error al cargar la vista previa de la imagen. Intente con otra imagen.');
+                                    }}
+                                />
+                                <button
+                                    onClick={() => setLocationImagePreview(null)}
+                                    className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full text-xs"
+                                    title="Eliminar imagen"
+                                >
+                                    <i className="fas fa-times"></i>
+                                </button>
+                                <p className="text-xs text-gray-400 mt-2">La imagen se incluirá en el PDF.</p>
+                            </div>
+                        )}
+                        {!locationImagePreview && (
+                            <p className="text-xs text-gray-400 mt-2">Sube una imagen para incluirla en el reporte PDF.</p>
+                        )}
+                    </div>
+
+
+                    <hr className="border-gray-700 my-6" /> {/* Separator */}
+
+                    <h3 className="text-xl font-bold text-yellow-400 mb-4">Parámetros del Sistema Fotovoltaico</h3>
+                    <div className="mb-4">
+                      <label className="block text-gray-300 text-sm font-bold mb-2">
+                        Tipo de Sistema:
+                      </label>
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="onGrid"
+                          name="systemType"
+                          value="on-grid"
+                          checked={systemType === 'on-grid'}
+                          onChange={(e) => setSystemType(e.target.value)}
+                          className="mr-2"
+                        />
+                        <label htmlFor="onGrid" className="text-gray-300 mr-4">On-Grid (Conectado a Red)</label>
+                        <input
+                          type="radio"
+                          id="offGrid"
+                          name="systemType"
+                          value="off-grid"
+                          checked={systemType === 'off-grid'}
+                          onChange={(e) => setSystemType(e.target.value)}
+                          className="mr-2"
+                        />
+                        <label htmlFor="offGrid" className="text-gray-300">Off-Grid (Aislado)</label>
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-gray-300 text-sm font-bold mb-2">
+                        Tipo de Fase:
+                      </label>
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="monofasico"
+                          name="systemPhase"
+                          value="monofasico"
+                          checked={systemPhase === 'monofasico'}
+                          onChange={(e) => setSystemPhase(e.target.value)}
+                          className="mr-2"
+                        />
+                        <label htmlFor="monofasico" className="text-gray-300 mr-4">Monofásico</label>
+                        <input
+                          type="radio"
+                          id="trifasico"
+                          name="systemPhase"
+                          value="trifasico"
+                          checked={systemPhase === 'trifasico'}
+                          onChange={(e) => setSystemPhase(e.target.value)}
+                          className="mr-2"
+                        />
+                        <label htmlFor="trifasico" className="text-gray-300">Trifásico</label>
+                      </div>
+                    </div>
+
+                    {systemType === 'on-grid' ? (
+                      <div className="mb-4">
+                        <label className="block text-gray-300 text-sm font-bold mb-2">
+                          Consumo Eléctrico Bimestral (kWh):
+                        </label>
+                        {/* Modified this section for 2-column layout */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                          {bimonthlyPeriods.map(period => (
+                            <div key={period} className="flex items-center">
+                              <label htmlFor={`consumption-${period}`} className="w-20 text-gray-400 text-sm mr-2">
+                                {period}:
+                              </label>
+                              <input
+                                type="number"
+                                id={`consumption-${period}`}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                                value={bimonthlyConsumption[period]}
+                                onChange={(e) => handleBimonthlyInputChange(period, e.target.value)}
+                                placeholder="kWh"
+                                min="0"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-4">
+                        <h4 className="text-lg font-semibold text-gray-300 mb-2">Electrodomésticos y Otros Consumos:</h4>
+                        {/* Added headers for the appliance input columns */}
+                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 items-center text-gray-400 text-sm font-semibold">
+                            <span className="col-span-1 sm:col-span-2">Nombre</span>
+                            <span>Potencia (W)</span>
+                            <span>Horas/día</span>
+                            <span>Cantidad</span>
+                            <span></span> {/* For the delete button column */}
+                        </div>
+                        {appliances.map((app, index) => (
+                          <div key={index} className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 items-center">
+                            <input
+                              type="text"
+                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700 col-span-1 sm:col-span-2"
+                              placeholder="Ej: Heladera, Luces LED, Otros"
+                              value={app.name}
+                              onChange={(e) => handleApplianceChange(index, 'name', e.target.value)}
+                            />
+                            <input
+                              type="number"
+                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                              placeholder="W"
+                              value={app.wattage}
+                              onChange={(e) => handleApplianceChange(index, 'wattage', e.target.value)}
+                              min="0"
+                            />
+                            <input
+                              type="number"
+                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                              placeholder="Horas"
+                              value={app.hours}
+                              onChange={(e) => handleApplianceChange(index, 'hours', e.target.value)}
+                              min="0"
+                              step="0.1"
+                            />
+                            {/* New Quantity Input */}
+                            <input
+                              type="number"
+                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                              placeholder="Cant."
+                              value={app.quantity}
+                              onChange={(e) => handleApplianceChange(index, 'quantity', e.target.value)}
+                              min="1"
+                            />
+                            <button
+                              onClick={() => handleRemoveAppliance(index)}
+                              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg transition-colors duration-200"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={handleAddAppliance}
+                          className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg mt-2 transition-colors duration-200"
+                        >
+                          <i className="fas fa-plus mr-2"></i> Añadir Electrodoméstico/Otro
+                        </button>
+
+                        <div className="mt-4">
+                            <label htmlFor="daysAutonomy" className="block text-gray-300 text-sm font-bold mb-2">
+                                Días de Autonomía (para Off-Grid):
+                            </label>
+                            <input
+                                type="number"
+                                id="daysAutonomy"
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                                value={daysAutonomy}
+                                onChange={(e) => setDaysAutonomy(e.target.value)}
+                                placeholder="Ej: 2 (días sin sol)"
+                                min="1"
+                            />
+                        </div>
+                        <div className="mt-4">
+                            <label className="block text-gray-300 text-sm font-bold mb-2">
+                                Tipo de Vivienda:
+                            </label>
+                            <div className="flex items-center">
+                                <input
+                                    type="radio"
+                                    id="dwellingDaily"
+                                    name="dwellingType"
+                                    value="daily"
+                                    checked={dwellingType === 'daily'}
+                                    onChange={(e) => setDwellingType(e.target.value)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="dwellingDaily" className="text-gray-300 mr-4">Uso Diario</label>
+                                <input
+                                    type="radio"
+                                    id="dwellingWeekend"
+                                    name="dwellingType"
+                                    value="weekend"
+                                    checked={dwellingType === 'weekend'}
+                                    onChange={(e) => setDwellingType(e.target.value)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="dwellingWeekend" className="text-gray-300">Fin de Semana</label>
+                            </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={dimensionPVSystem}
+                      disabled={isDimensionButtonDisabled()}
+                      className={`w-full mt-4 py-2 px-4 rounded-lg font-bold transition-all duration-300 ${
+                        isDimensioning || isFetchingSolarData ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'
+                      }`}
+                    >
+                      {isDimensioning || isFetchingSolarData ? (
+                        <span className="flex items-center justify-center">
+                          <i className="fas fa-spinner fa-spin mr-2"></i> {isFetchingSolarData ? 'Obteniendo datos solares...' : 'Calculando...'}
+                        </span>
+                      ) : (
+                        'Dimensionar Sistema Fotovoltaico'
+                      )}
+                    </button>
+
+                    {dimensioningResult && (
+                      <div className="mt-4 p-3 bg-gray-900 rounded-lg text-gray-200 border border-gray-700 overflow-y-auto max-h-48">
+                        <p className="font-semibold text-yellow-300 mb-2">Resultado del Dimensionamiento:</p>
+                        {dimensioningResult.error ? (
+                          <p className="text-red-400">{dimensioningResult.error}</p>
+                        ) : (
+                          <>
+                            <p className="font-semibold text-yellow-300 mt-2">Datos del Cliente:</p>
+                            <p>Nombre: <span className="font-bold">{dimensioningResult.client.name}</span></p>
+                            <p>Dirección: <span className="font-bold">{dimensioningResult.client.address}</span></p>
+                            <p>Localidad: <span className="font-bold">{dimensioningResult.client.localidad}</span></p>
+                            <p>Provincia: <span className="font-bold">{dimensioningResult.client.provincia}</span></p>
+                            <p>Latitud: <span className="font-bold">{latitude}</span></p>
+                            <p>Longitud: <span className="font-bold">{longitude}</span></p>
+                            {dimensioningResult.systemType === 'off-grid' && (
+                                <p>Tipo de Vivienda: <span className="font-bold">{dimensioningResult.dwellingType === 'daily' ? 'Uso Diario' : 'Fin de Semana'}</span></p>
+                            )}
+                            
+                            <p className="font-semibold text-yellow-300 mt-4">Detalles del Sistema:</p>
+                            <p>Tipo de Sistema: <span className="font-bold">{dimensioningResult.systemType === 'on-grid' ? 'On-Grid (Conectado a Red)' : 'Off-Grid (Aislado)'}</span></p>
+                            <p>Tipo de Fase: <span className="font-bold">{dimensioningResult.systemPhase === 'monofasico' ? 'Monofásico' : 'Trifásico'}</span></p>
+                            <p>Horas de Sol Pico (PSH) Obtenidas: <span className="font-bold">{dimensioningResult.fetchedPeakSunHours.toFixed(2)} horas/día</span></p>
+                            <p>Potencia de Array PV Requerida: <span className="font-bold">{dimensioningResult.requiredPVArrayWp} Wp</span></p>
+                            <p>Cantidad de Paneles (550Wp c/u): <span className="font-bold">{dimensioningResult.numberOfPanels} unidades</span></p>
+                            
+                            {dimensioningResult.selectedInverter && (
+                                <>
+                                    <p className="font-semibold text-yellow-300 mt-2">Inversor Seleccionado:</p>
+                                    <p>Potencia: <span className="font-bold">{dimensioningResult.selectedInverter.power_kW} kW</span></p>
+                                    <p>Voltaje AC: <span className="font-bold">{dimensioningResult.selectedInverter.voltage_ac_V}V</span></p>
+                                    {dimensioningResult.selectedInverter.voltage_dc_V && (
+                                        <p>Voltaje DC: <span className="font-bold">{dimensioningResult.selectedInverter.voltage_dc_V}V</span></p>
+                                    )}
+                                    <p>Fase: <span className="font-bold">{dimensioningResult.selectedInverter.phase === 'monofasico' ? 'Monofásico' : 'Trifásico'}</span></p>
+                                    {dimensioningResult.selectedInverter.quantity > 1 && (
+                                        <p>Cantidad: <span className="font-bold">{dimensioningResult.selectedInverter.quantity} unidades</span></p>
+                                    )}
+                                </>
+                            )}
+
+                            {dimensioningResult.systemType === 'off-grid' && (
+                              <>
+                                <p>Consumo Diario Total: <span className="font-bold">{dimensioningResult.totalDailyConsumptionWh.toFixed(2)} Wh/día</span></p>
+                                <p>Días de Autonomía: <span className="font-bold">{dimensioningResult.daysAutonomy} días</span></p>
+                                
+                                {dimensioningResult.selectedBattery && (
+                                    <>
+                                        <p className="font-semibold text-yellow-300 mt-2">Batería Seleccionada:</p>
+                                        <p>Material: <span className="font-bold">{dimensioningResult.selectedBattery.material}</span></p>
+                                        <p>Voltaje: <span className="font-bold">{dimensioningResult.selectedBattery.voltage_V}V</span></p>
+                                        <p>Capacidad: <span className="font-bold">{dimensioningResult.selectedBattery.capacity_Ah} Ah</span> ({dimensioningResult.selectedBattery.capacity_kWh} kWh)</p>
+                                        {dimensioningResult.selectedBattery.quantity > 1 && (
+                                            <p>Cantidad: <span className="font-bold">{dimensioningResult.selectedBattery.quantity} unidades</span></p>
+                                        )}
+                                    </>
+                                )}
+                              </>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">
+                              *Este es un cálculo estimado. Para un dimensionamiento preciso, consulte a un ingeniero especializado.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {dimensioningResult && !dimensioningResult.error && (
+                      <button
+                        onClick={generatePdfPresentation}
+                        disabled={isGeneratingPdf || !arePdfLibsLoaded || isLogoLoading}
+                        className={`w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 flex items-center justify-center mt-4`}
+                      >
+                        {isGeneratingPdf ? (
+                          <span className="flex items-center justify-center">
+                            <i className="fas fa-spinner fa-spin mr-2"></i> Generando PDF...
+                          </span>
+                        ) : isLogoLoading ? (
+                          <span className="flex items-center justify-center">
+                            <i className="fas fa-spinner fa-spin mr-2"></i> Cargando logo...
+                          </span>
+                        ) : (
+                          <>
+                            <i className="fas fa-file-pdf mr-3"></i> Descargar Presentación PDF
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* WhatsApp Button */}
+                <button
+                  onClick={handleWhatsAppClick}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center mt-4"
+                >
+                  <i className="fab fa-whatsapp mr-3 text-xl"></i> ¡Quiero mi Propia Energía!
+                </button>
+
+                <p className="text-center text-gray-400 text-xs mt-6">
+                  Dimensionamiento preliminar. Los valores reales finales pueden variar.
+                </p>
+                <p className="text-center text-gray-400 text-xs mt-2">
+                  Sistema creado por REDERAR, Todos los derechos Reservados ©
+                </p>
+              </div>
+            </div>
+          );
+        };
+
+        // Mount the React App component to the root div
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
