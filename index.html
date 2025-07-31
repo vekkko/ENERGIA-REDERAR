@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -886,7 +887,7 @@
                 currentY += 8; // Space after table
 
                 currentY = addText(
-                  `*Esta proyección es una estimación simplificada y se basa en la factura mensual actual. No considera aumentos futuros en el costo de la energía ni otros costos de mantenimiento.`,
+                  `*Esta proyección es una estimación simplificada y se basa en la factura mensual actual, asumiendo que el 50% de la factura son impuestos y que el ahorro generado por el sistema fotovoltaico está libre de los mismos. No considera aumentos futuros en el costo de la energía ni otros costos de mantenimiento.`,
                   contentAreaX, currentY, { fontSize: 10, color: '#666', align: 'left' }
                 );
                 currentY = addText(
@@ -1172,9 +1173,11 @@
             if (isNaN(reduction) || reduction < 0 || reduction > 100) { return { error: 'Invalid reduction' }; }
             if (isNaN(years) || years <= 0) { return { error: 'Invalid years' }; }
 
-            // Initial monthly savings based on the percentage reduction of the total bill
-            // This saving is considered "tax-free" as it's a reduction in the total expense.
-            let initialMonthlySavings = bill * (reduction / 100);
+            // Calculate the tax-free portion of the bill (50%)
+            const taxFreeBillPortion = bill * 0.50; // Assuming 50% of the bill is tax-free
+
+            // Initial monthly savings based on the percentage reduction of the tax-free portion
+            let initialMonthlySavings = taxFreeBillPortion * (reduction / 100);
 
             let cumulativeSavings = 0;
             let paybackPeriodMonths = Infinity;
@@ -1187,9 +1190,29 @@
 
             for (let month = 0; month < years * 12; month++) {
                 let currentTraditionalBill = constantTraditionalBill; // No increase
-                let currentSolarBill = currentTraditionalBill * (1 - (reduction / 100));
                 
-                let currentMonthSavings = currentTraditionalBill - currentSolarBill;
+                // The cost with solar is the non-taxable portion reduced, plus the taxable portion (which is not reduced)
+                // If the system reduces the bill by 'reduction' percentage, that reduction comes from the energy consumption.
+                // So, the 'cost with solar' would be:
+                // (Tax-free portion * (1 - reduction/100)) + Taxable portion
+                // Assuming the 'reduction' applies to the *entire* bill's energy consumption, and the *savings* are tax-free.
+                // Let's re-think this:
+                // Original bill = Base + Taxes
+                // Savings = (Base * reduction_percentage)
+                // New bill = Original bill - Savings = (Base + Taxes) - (Base * reduction_percentage)
+                // This implies the savings are *not* tax-free, but that the *energy* is reduced.
+
+                // User's request: "todo lo que genere el sistema fotovoltaico sera libre de impuestos."
+                // This means the *saved amount* is free of taxes.
+                // So, if the bill is ARS 100, and 50% (ARS 50) is taxes, and 50% (ARS 50) is energy consumption.
+                // If we save 70% of the energy consumption: 50 * 0.70 = 35 ARS saved.
+                // This 35 ARS is now tax-free.
+                // New bill = (50 - 35) + 50 (taxes) = 15 + 50 = 65 ARS.
+                // Total savings = 100 - 65 = 35 ARS.
+                // This is equivalent to: (bill * 0.50) * (reduction / 100)
+
+                let currentMonthSavings = taxFreeBillPortion * (reduction / 100);
+                let currentSolarBill = currentTraditionalBill - currentMonthSavings;
 
                 cumulativeSavings += currentMonthSavings;
                 
@@ -1784,7 +1807,7 @@
                           <p>Período de Retorno de la Inversión (Payback): <span className="font-bold">{financialProjectionResult.paybackPeriodYears} años</span></p>
                           <p>Ahorro Total Proyectado ({projectionYears} años): <span className="font-bold">ARS {financialProjectionResult.totalSavingsOverYears}</span></p>
                           <p className="text-xs text-gray-500 mt-2">
-                            *Esta proyección es una estimación simplificada y se basa en la factura mensual actual. No considera aumentos futuros en el costo de la energía ni otros costos de mantenimiento.
+                            *Esta proyección es una estimación simplificada y se basa en la factura mensual actual, asumiendo que el 50% de la factura son impuestos y que el ahorro generado por el sistema fotovoltaico está libre de los mismos. No considera aumentos futuros en el costo de la energía ni otros costos de mantenimiento.
                           </p>
                           {/* New disclaimers added here */}
                           <p className="text-xs text-gray-500 mt-2">
@@ -1852,4 +1875,3 @@
     </script>
 </body>
 </html>
-
