@@ -54,7 +54,7 @@
             },
             {
                 category: "Sistema de Monitorización",
-                description: "Permite supervisar el rendimiento del sistema en tiempo real, detectar posibles problemas y optimizar la producción de energía."
+                description: "Permite supervisar el rendimiento del sistema en real, detectar posibles problemas y optimizar la producción de energía."
             },
             {
                 category: "Cableado y Protecciones Eléctricas",
@@ -125,10 +125,6 @@
           // Nuevo estado para controlar si el logo está cargando
           const [isLogoLoading, setIsLogoLoading] = useState(true);
 
-          // Image URLs for the PDF report - Using placeholder images as direct file_content URLs might not render
-          const TERMOACERO_IMAGE_URL = "https://placehold.co/250x150/ADD8E6/FFFFFF?text=Termotanque+Solar";
-          const PUBLI_PANEL_IMAGE_URL = "https://placehold.co/250x150/90EE90/FFFFFF?text=Panel+Solar";
-
           // Component Data (from user-provided images, excluding brands)
           const inverterOptions = [
               // On-Grid Monofásico (kW, AC Voltage)
@@ -175,6 +171,13 @@
               { material: 'Litio', voltage_V: 48, capacity_Ah: 100, capacity_kWh: 5.12 },
           ].sort((a, b) => a.capacity_kWh - b.capacity_kWh); // Sort by capacity for easier selection
 
+          // New state variables for Financial Projection
+          const [showFinancialProjection, setShowFinancialProjection] = useState(false); // Changed to false by default
+          const [currentMonthlyBill, setCurrentMonthlyBill] = useState('');
+          const [initialSystemCost, setInitialSystemCost] = useState(''); // Changed from solarPowerMonthlyFee
+          const [estimatedBillReductionPercentage, setEstimatedBillReductionPercentage] = useState(70); // Default 70% based on provided HTML
+          const [projectionYears, setProjectionYears] = useState(20); // Default 20 years
+          // Removed monthlyEnergyIncreaseRate state
 
           // Custom Message Display
           const showMessage = (type, text) => {
@@ -514,6 +517,14 @@
               return;
             }
 
+            // Explicitly check for jsPDF and html2canvas availability
+            if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+                showMessage('error', 'Las librerías necesarias para generar el PDF (jsPDF, html2canvas) no se han cargado completamente. Por favor, espere un momento y vuelva a intentar, o recargue la página.');
+                console.error("DEBUG: Librerías jsPDF o html2canvas no encontradas en el objeto window.");
+                setIsGeneratingPdf(false);
+                return;
+            }
+
             if (!arePdfLibsLoaded) {
               showMessage('error', 'Las librerías necesarias para generar el PDF no se han cargado completamente. Por favor, espere o recargue la página.');
               console.error("DEBUG: Librerías html2canvas o jspdf no encontradas en el objeto window (arePdfLibsLoaded es false).");
@@ -559,13 +570,12 @@
               };
 
               // Helper function to add text and manage page breaks
-              const addText = (text, x, y, options = {}) => {
+              const addText = (text, xStart, y, options = {}) => { // xStart is the left edge for content
                   const { fontSize = 12, isBold = false, color = '#333', align = 'left', spacingBefore = 0, isUnderlined = false } = options;
                   pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
                   pdf.setFontSize(fontSize);
                   pdf.setTextColor(color);
 
-                  // Adjust currentY for spacingBefore, considering the inner padding
                   let nextYConsidered = currentY + spacingBefore;
                   if (nextYConsidered > pageTotalHeight - margin - innerPadding) { // Check if new page is needed for spacingBefore
                       pdf.addPage();
@@ -585,25 +595,23 @@
                       currentY = margin + innerPadding; // Reset Y to top of content area on new page
                   }
                   
-                  // Calculate X position for alignment within the content area
-                  let actualX = x; // Use the provided x directly for positioning
+                  let textX = xStart; // Default to left-aligned start
                   if (align === 'center') {
                       // Calculate textWidth based on the first line of splitText for centering
                       const textWidth = pdf.getStringUnitWidth(splitText[0]) * fontSize / pdf.internal.scaleFactor;
-                      actualX = x - (textWidth / 2);
+                      textX = xStart + (contentAreaWidth - textWidth) / 2; // Center within the content area
                   } else if (align === 'right') {
-                      // Calculate textWidth based on the first line of splitText for right alignment
                       const textWidth = pdf.getStringUnitWidth(splitText[0]) * fontSize / pdf.internal.scaleFactor;
-                      actualX = x - textWidth;
+                      textX = xStart + contentAreaWidth - textWidth; // Right align within the content area
                   }
 
-                  pdf.text(splitText, actualX, currentY);
+                  pdf.text(splitText, textX, currentY);
 
                   if (isUnderlined) {
                       // For underlining, use the width of the *original* text to ensure full underline if it was a single logical unit
                       const originalTextWidth = pdf.getStringUnitWidth(text) * fontSize / pdf.internal.scaleFactor;
                       const underlineY = currentY + (fontSize * 0.1); // Position of the underline
-                      let underlineX = actualX; // Start underline from the actual text X position
+                      let underlineX = textX; // Start underline from the actual text X position
                       pdf.line(underlineX, underlineY, underlineX + originalTextWidth, underlineY);
                   }
 
@@ -622,7 +630,7 @@
                   pdf.addImage(pdfLogoBase64, 'JPEG', logoX, currentY, logoWidth, logoHeight); // Assuming JPEG based on the URL
                   currentY += logoHeight + 10; // Add space after logo
               } else {
-                  currentY = addText("Logo no disponible (Error de carga)", pageTotalWidth / 2, currentY, { fontSize: 14, color: '#999', align: 'center', isBold: true });
+                  currentY = addText("Logo no disponible (Error de carga)", contentAreaX, currentY, { fontSize: 14, color: '#999', align: 'center', isBold: true });
                   currentY += 10; // Add space after fallback text
               }
 
@@ -630,7 +638,7 @@
               // Add Main Title (centered on the page)
               currentY = addText(
                   "Presentación de Dimensionamiento Fotovoltaico",
-                  contentAreaX + (contentAreaWidth / 2), // X coordinate is the center of the content area
+                  contentAreaX, // Pass contentAreaX as the starting point
                   currentY,
                   { fontSize: 36, isBold: true, color: '#FFD700', align: 'center', spacingBefore: 10, isUnderlined: false }
               );
@@ -813,6 +821,84 @@
                   currentY = addText("En resumen, un sistema fotovoltaico off-grid requiere una planificación cuidadosa y la selección de componentes de calidad para garantizar su correcto funcionamiento y autonomía.", contentAreaX, currentY, { fontSize: 12, align: 'left', spacingBefore: 8 });
               }
 
+              // Add Financial Projection Details to PDF
+              if (financialProjectionResult.isValid) {
+                pdf.addPage();
+                drawRoundedRectBorder();
+                currentY = margin + innerPadding;
+
+                currentY = addText("Proyección Financiera de Ahorro:", contentAreaX, currentY, { fontSize: 22, isBold: true, color: '#C0392B', spacingBefore: 10 });
+                currentY = addText(`Última Factura Mensual: ARS ${currentMonthlyBill}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY = addText(`Costo Inicial del Sistema Solar: ARS ${initialSystemCost}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY = addText(`Reducción de Factura Estimada: ${estimatedBillReductionPercentage}%`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY = addText(`Años de Proyección: ${projectionYears}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY += 8;
+
+                currentY = addText("Resultados de la Proyección:", contentAreaX, currentY, { fontSize: 18, isBold: true, color: '#E74C3C', spacingBefore: 5 });
+                currentY = addText(`Ahorro Mensual Estimado (inicial): ARS ${financialProjectionResult.monthlySavingsFromSolar}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY = addText(`Ahorro Anual Estimado (inicial): ARS ${financialProjectionResult.annualSavingsFromSolar}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY = addText(`Período de Retorno de la Inversión (Payback): ${financialProjectionResult.paybackPeriodYears} años`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY = addText(`Ahorro Total Proyectado (${projectionYears} años): ARS ${financialProjectionResult.totalSavingsOverYears}`, contentAreaX, currentY, { fontSize: 12, align: 'left' });
+                currentY += 8;
+
+                // Ahorro Potencial Section
+                currentY = addText("Ahorro Potencial:", contentAreaX, currentY, { fontSize: 18, isBold: true, color: '#E74C3C', spacingBefore: 10 });
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(12);
+                pdf.text(`Ahorro anual: ARS ${financialProjectionResult.annualSavingsFromSolar}`, contentAreaX, currentY + 5);
+                pdf.text(`Ahorro a ${projectionYears} años: ARS ${financialProjectionResult.totalSavingsOverYears}`, contentAreaX, currentY + 15);
+                currentY += 25; // Adjust Y after this section
+
+                // Monthly Breakdown (Desglose Mensual Estimado)
+                currentY = addText("Desglose Mensual Estimado:", contentAreaX, currentY, { fontSize: 18, isBold: true, color: '#E74C3C', spacingBefore: 10 });
+                
+                // Headers for the table
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(10);
+                pdf.text("Mes", contentAreaX, currentY + 5);
+                pdf.text("Tradicional", contentAreaX + contentAreaWidth * 0.3, currentY + 5, { align: 'right' });
+                pdf.text("Con Solar", contentAreaX + contentAreaWidth * 0.7, currentY + 5, { align: 'right' });
+                currentY += 10; // Space after headers
+
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                financialProjectionResult.monthlyProjections.forEach((monthData, index) => {
+                    if (currentY + 5 > pageTotalHeight - margin - innerPadding) {
+                        pdf.addPage();
+                        drawRoundedRectBorder();
+                        currentY = margin + innerPadding;
+                        // Redraw headers on new page
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setFontSize(10);
+                        pdf.text("Mes", contentAreaX, currentY + 5);
+                        pdf.text("Tradicional", contentAreaX + contentAreaWidth * 0.3, currentY + 5, { align: 'right' });
+                        pdf.text("Con Solar", contentAreaX + contentAreaWidth * 0.7, currentY + 5, { align: 'right' });
+                        currentY += 10;
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setFontSize(10);
+                    }
+                    pdf.text(monthData.monthName, contentAreaX, currentY);
+                    pdf.text(`ARS ${monthData.traditionalCost.toFixed(2)}`, contentAreaX + contentAreaWidth * 0.3, currentY, { align: 'right' });
+                    pdf.text(`ARS ${monthData.solarCost.toFixed(2)}`, contentAreaX + contentAreaWidth * 0.7, currentY, { align: 'right' });
+                    currentY += 5; // Line height
+                });
+
+                currentY += 8; // Space after table
+
+                currentY = addText(
+                  `*Esta proyección es una estimación simplificada y se basa en la factura mensual actual. No considera aumentos futuros en el costo de la energía ni otros costos de mantenimiento.`,
+                  contentAreaX, currentY, { fontSize: 10, color: '#666', align: 'left' }
+                );
+                currentY = addText(
+                  `* Esta es una estimación basada en promedios. El ahorro real puede variar según el consumo, ubicación y otros factores.`,
+                  contentAreaX, currentY, { fontSize: 10, color: '#666', align: 'left' }
+                );
+                currentY = addText(
+                  `* Este es un cálculo aproximado y estimado basado en las tarifas eléctricas corrientes del mes en curso.`,
+                  contentAreaX, currentY, { fontSize: 10, color: '#666', align: 'left' }
+                );
+              }
+
 
               pdf.save(`Dimensionamiento_Fotovoltaico_${clientName.replace(/\s/g, '_')}.pdf`);
               console.log("DEBUG: PDF guardado exitosamente.");
@@ -824,7 +910,7 @@
               setIsGeneratingPdf(false);
               console.log("DEBUG: Generación de PDF finalizada.");
             }
-          }, [dimensioningResult, arePdfLibsLoaded, isLogoLoading, clientName, latitude, longitude, estimatedAnnualEnergySaved, estimatedAnnualCo2Avoided, showMessage, locationImagePreview]);
+          }, [dimensioningResult, arePdfLibsLoaded, isLogoLoading, clientName, latitude, longitude, estimatedAnnualEnergySaved, estimatedAnnualCo2Avoided, showMessage, locationImagePreview, currentMonthlyBill, initialSystemCost, estimatedBillReductionPercentage, projectionYears]);
 
 
           // Function to dimension PV system
@@ -833,6 +919,7 @@
             setIsDimensioning(true);
             setDimensioningResult(null); // Clear previous results
             setAppMessage({ type: '', text: '' }); // Clear any previous messages
+            setShowFinancialProjection(false); // Hide financial projection until dimensioning is successful
 
             // --- DEBUGGING: Log all relevant input states ---
             console.log("DEBUG: Client Name (state):", clientName);
@@ -1060,6 +1147,7 @@
               console.log("DEBUG: Final dimensioningResult object before setting state:", newDimensioningResult);
               setDimensioningResult(newDimensioningResult);
               console.log("DEBUG: Dimensioning Result set successfully.");
+              setShowFinancialProjection(true); // Show financial projection after successful dimensioning
 
             } catch (error) {
               console.error("DEBUG: Error inesperado durante el dimensionamiento:", error);
@@ -1071,531 +1159,688 @@
           };
 
 
+          // Financial Projection Calculations
+          const calculateFinancialProjection = () => {
+            const bill = parseFloat(currentMonthlyBill);
+            const initialCost = parseFloat(initialSystemCost);
+            const reduction = parseFloat(estimatedBillReductionPercentage);
+            const years = parseInt(projectionYears);
+
+            // Validate inputs
+            if (isNaN(bill) || bill <= 0) { return { error: 'Invalid bill' }; }
+            if (isNaN(initialCost) || initialCost < 0) { return { error: 'Invalid initial cost' }; }
+            if (isNaN(reduction) || reduction < 0 || reduction > 100) { return { error: 'Invalid reduction' }; }
+            if (isNaN(years) || years <= 0) { return { error: 'Invalid years' }; }
+
+            // Initial monthly savings based on the percentage reduction of the total bill
+            // This saving is considered "tax-free" as it's a reduction in the total expense.
+            let initialMonthlySavings = bill * (reduction / 100);
+
+            let cumulativeSavings = 0;
+            let paybackPeriodMonths = Infinity;
+            let totalSavingsOverProjection = 0;
+            const monthlyProjections = [];
+            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+            // Traditional bill remains constant as per user request (no future increases)
+            const constantTraditionalBill = bill;
+
+            for (let month = 0; month < years * 12; month++) {
+                let currentTraditionalBill = constantTraditionalBill; // No increase
+                let currentSolarBill = currentTraditionalBill * (1 - (reduction / 100));
+                
+                let currentMonthSavings = currentTraditionalBill - currentSolarBill;
+
+                cumulativeSavings += currentMonthSavings;
+                
+                if (paybackPeriodMonths === Infinity && cumulativeSavings >= initialCost) {
+                    paybackPeriodMonths = month + 1; // +1 because month is 0-indexed
+                }
+                totalSavingsOverProjection += currentMonthSavings;
+
+                if (month < 12) { // Store monthly breakdown for the first year only
+                    monthlyProjections.push({
+                        monthName: monthNames[month % 12],
+                        traditionalCost: currentTraditionalBill,
+                        solarCost: currentSolarBill
+                    });
+                }
+            }
+
+            const netTotalSavingsOverYears = totalSavingsOverProjection - initialCost;
+
+            return {
+              monthlySavingsFromSolar: initialMonthlySavings.toFixed(2),
+              annualSavingsFromSolar: (initialMonthlySavings * 12).toFixed(2),
+              paybackPeriodYears: paybackPeriodMonths === Infinity ? 'No aplica' : (paybackPeriodMonths / 12).toFixed(2),
+              totalSavingsOverYears: netTotalSavingsOverYears.toFixed(2),
+              monthlyProjections: monthlyProjections,
+              isValid: true
+            };
+          };
+
+          const financialProjectionResult = calculateFinancialProjection();
+
+
           return (
             <div className="min-h-screen bg-black text-white font-inter p-4 sm:p-8 flex items-center justify-center">
               <div className="bg-gray-900 rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-3xl border border-yellow-500 transform transition-transform duration-500 hover:scale-105">
-                {/* Logo */}
-                <div className="flex justify-center mb-6">
-                  <img
-                    src={REDERAR_LOGO_DISPLAY_URL} // Usando la URL del logo para la visualización
-                    alt="Logo de REDERAR Energías Renovables con colores de la bandera Argentina"
-                    className="w-48 h-auto rounded-lg"
-                    onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/200x100/ADD8E6/FFFFFF?text=REDERAR' }} // Fallback
-                  />
-                </div>
-
-                <h1 className="text-3xl sm:text-4xl font-bold text-center text-yellow-400 mb-6 drop-shadow-lg">
-                  <i className="fas fa-sun mr-3"></i> Dimensionador Inicial Sistemas Fotovoltaicos
-                </h1>
-
-                {/* Custom Message Display */}
-                {appMessage.text && (
-                  <div className={`mb-4 p-3 rounded-lg text-center font-semibold ${
-                    appMessage.type === 'error' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'
-                  }`}>
-                    {appMessage.text}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                  {/* Card: Energía Anual Generada */}
-                  <div className="bg-gray-800 rounded-lg p-4 shadow-md flex flex-col items-center justify-center border border-gray-700">
-                    <p className="text-sm font-semibold text-gray-400 text-center">Energía Anual Generada</p>
-                    <p className="text-3xl font-bold text-lime-400 mt-1">
-                      {estimatedAnnualEnergySaved.toFixed(2)} kWh
-                    </p>
+                {console.log("App component rendered!")} {/* Debug log */}
+                <> {/* Added React Fragment here */}
+                  {/* Logo */}
+                  <div className="flex justify-center mb-6">
+                    <img
+                      src={REDERAR_LOGO_DISPLAY_URL} // Usando la URL del logo para la visualización
+                      alt="Logo de REDERAR Energías Renovables con colores de la bandera Argentina"
+                      className="w-48 h-auto rounded-lg"
+                      onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/200x100/ADD8E6/FFFFFF?text=REDERAR' }} // Fallback
+                    />
                   </div>
 
-                  {/* Card: CO2 Ahorrado Anual Estimado */}
-                  <div className="bg-gray-800 rounded-lg p-4 shadow-md flex flex-col items-center justify-center border border-gray-700">
-                    <p className="text-sm font-semibold text-gray-400">CO2 Ahorrado Anual Estimado</p>
-                    <p className="text-3xl font-bold text-teal-400 mt-1">
-                      {estimatedAnnualCo2Avoided.toFixed(2)} kg
-                    </p>
+                  <h1 className="text-3xl sm:text-4xl font-bold text-center text-yellow-400 mb-6 drop-shadow-lg">
+                    <i className="fas fa-sun mr-3"></i> Dimensionador Inicial Sistemas Fotovoltaicos
+                  </h1>
+
+                  {/* Custom Message Display */}
+                  {appMessage.text && (
+                    <div className={`mb-4 p-3 rounded-lg text-center font-semibold ${
+                      appMessage.type === 'error' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'
+                    }`}>
+                      {appMessage.text}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                    {/* Card: Energía Anual Generada */}
+                    <div className="bg-gray-800 rounded-lg p-4 shadow-md flex flex-col items-center justify-center border border-gray-700">
+                      <p className="text-sm font-semibold text-gray-400 text-center">Energía Anual Generada</p>
+                      <p className="text-3xl font-bold text-lime-400 mt-1">
+                        {estimatedAnnualEnergySaved.toFixed(2)} kWh
+                      </p>
+                    </div>
+
+                    {/* Card: CO2 Ahorrado Anual Estimado */}
+                    <div className="bg-gray-800 rounded-lg p-4 shadow-md flex flex-col items-center justify-center border border-gray-700">
+                      <p className="text-sm font-semibold text-gray-400">CO2 Ahorrado Anual Estimado</p>
+                      <p className="text-3xl font-bold text-teal-400 mt-1">
+                        {estimatedAnnualCo2Avoided.toFixed(2)} kg
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {/* PV System Dimensioning Feature Button */}
-                <button
-                  onClick={() => setShowPVDimensioning(!showPVDimensioning)}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-75 flex items-center justify-center mt-4"
-                >
-                  <i className="fas fa-calculator mr-3"></i> {showPVDimensioning ? 'Ocultar Dimensionador' : 'Dimensionar Sistema Fotovoltaico'}
-                </button>
+                  {/* PV System Dimensioning Feature Button */}
+                  <button
+                    onClick={() => setShowPVDimensioning(!showPVDimensioning)}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-75 flex items-center justify-center mt-4"
+                  >
+                    <i className="fas fa-calculator mr-3"></i> {showPVDimensioning ? 'Ocultar Dimensionador' : 'Dimensionar Sistema Fotovoltaico'}
+                  </button>
 
-                {/* PV System Dimensioning Input and Output */}
-                {showPVDimensioning && (
-                  <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
-                    <h3 className="text-xl font-bold text-yellow-400 mb-4">Datos del Cliente y Dimensionamiento PV</h3>
-                    {/* Client Details Inputs - Now in a 2-column layout */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label htmlFor="clientName" className="block text-gray-300 text-sm font-bold mb-2">
-                          Nombre del Cliente:
-                        </label>
-                        <input
-                          type="text"
-                          id="clientName"
-                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                          value={clientName}
-                          onChange={(e) => setClientName(e.target.value)}
-                          placeholder="Ej: Juan Pérez"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="clientAddress" className="block text-gray-300 text-sm font-bold mb-2">
-                          Dirección:
-                        </label>
-                        <input
-                          type="text"
-                          id="clientAddress"
-                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                          value={clientAddress}
-                          onChange={(e) => setClientAddress(e.target.value)}
-                          placeholder="Ej: Av. Principal 123"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label htmlFor="clientProvincia" className="block text-gray-300 text-sm font-bold mb-2">
-                          Provincia:
-                        </label>
-                        <select
-                          id="clientProvincia"
-                          className="shadow border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                          value={selectedProvinceId}
-                          onChange={(e) => {
-                            const selectedOption = e.target.options[e.target.selectedIndex];
-                            setSelectedProvinceId(e.target.value);
-                            setSelectedProvinceName(selectedOption.text);
-                          }}
-                          disabled={isLoadingProvinces}
-                        >
-                          <option value="">
-                            {isLoadingProvinces ? 'Cargando provincias...' : (provinces.length === 0 && !isLoadingProvinces ? 'Error al cargar provincias' : 'Seleccione una provincia')}
-                          </option>
-                          {provinces.map(province => (
-                            <option key={province.id} value={province.id}>{province.nombre}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label htmlFor="clientLocalidad" className="block text-gray-300 text-sm font-bold mb-2">
-                          Localidad:
-                        </label>
-                        <select
-                          id="clientLocalidad"
-                          className="shadow border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                          value={selectedLocalidadId}
-                          onChange={(e) => {
-                            const selectedOption = e.target.options[e.target.selectedIndex];
-                            setSelectedLocalidadId(e.target.value);
-                            setSelectedLocalidadName(selectedOption.text);
-                          }}
-                          disabled={!selectedProvinceId || isLoadingLocalities}
-                        >
-                          <option value="">
-                            {!selectedProvinceId ? 'Seleccione una provincia primero' : (isLoadingLocalities ? 'Cargando localidades...' : (localities.length === 0 && !isLoadingLocalities ? 'Error al cargar localidades o no hay localidades' : 'Seleccione una localidad'))}
-                          </option>
-                          {localities.map(localidad => (
-                            <option key={localidad.id} value={localidad.id}>{localidad.nombre}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    {/* Coordenadas remain in a 2-column grid */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label htmlFor="latitude" className="block text-gray-300 text-sm font-bold mb-2">
-                          Latitud:
-                        </label>
-                        <input
-                          type="number"
-                          id="latitude"
-                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                          value={latitude}
-                          onChange={(e) => setLatitude(e.target.value)}
-                          placeholder="Ej: -32.0"
-                          step="0.01"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="longitude" className="block text-gray-300 text-sm font-bold mb-2">
-                          Longitud:
-                        </label>
-                        <input
-                          type="number"
-                          id="longitude"
-                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                          value={longitude}
-                          onChange={(e) => setLongitude(e.target.value)}
-                          placeholder="Ej: -60.0"
-                          step="0.01"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-gray-400 text-xs mt-1 mb-2">
-                      Puede obtener la latitud y longitud de la dirección del cliente utilizando Google Maps.
-                      Busque la dirección, haga clic derecho en el mapa y seleccione "¿Qué hay aquí?".
-                      Las coordenadas aparecerán en la parte inferior.
-                    </p>
-                    <p className="text-gray-400 text-xs mb-4">
-                      <a href="https://www.google.com/maps/place/Paran%C3%A1,+Entre+R%C3%ADos/@-31.7473185,-60.5149631,12z/data=!3m1!4b1!4m6!3m5!1s0x95b44df2b9835231:0x554ebde0aa5cfa9a!8m2!3d-31.7413197!4d-60.5115471!16zL2m/MDM2eWt2?entry=ttu&g_ep=EgoyMDI1MDcwOS4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                        Buscar dirección en Google Maps
-                      </a>
-                    </p>
-
-                    {/* Location Image Upload */}
-                    <div className="mb-4">
-                        <label htmlFor="locationImage" className="block text-gray-300 text-sm font-bold mb-2">
-                            Subir Foto de la Ubicación (Opcional):
-                        </label>
-                        <input
-                            type="file"
-                            id="locationImage"
-                            accept="image/*"
+                  {/* PV System Dimensioning Input and Output */}
+                  {showPVDimensioning && (
+                    <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                      <h3 className="text-xl font-bold text-yellow-400 mb-4">Datos del Cliente y Dimensionamiento PV</h3>
+                      {/* Client Details Inputs - Now in a 2-column layout */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label htmlFor="clientName" className="block text-gray-300 text-sm font-bold mb-2">
+                            Nombre del Cliente:
+                          </label>
+                          <input
+                            type="text"
+                            id="clientName"
                             className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                            onChange={handleLocationImageUpload}
-                        />
-                        {locationImagePreview && (
-                            <div className="mt-4 relative">
-                                <img
-                                    src={locationImagePreview}
-                                    alt="Vista previa de la imagen de la ubicación"
-                                    className="max-w-full h-auto rounded-lg border border-gray-600"
-                                    onError={(e) => {
-                                        console.error("ERROR: Failed to load image preview:", e);
-                                        e.target.onerror = null; // Prevent infinite loop
-                                        e.target.src = 'https://placehold.co/200x150/FF0000/FFFFFF?text=Error+Carga+Imagen'; // Fallback to an error placeholder
-                                        showMessage('error', 'Error al cargar la vista previa de la imagen. Intente con otra imagen.');
-                                    }}
-                                />
-                                <button
-                                    onClick={() => setLocationImagePreview(null)}
-                                    className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full text-xs"
-                                    title="Eliminar imagen"
-                                >
-                                    <i className="fas fa-times"></i>
-                                </button>
-                                <p className="text-xs text-gray-400 mt-2">La imagen se incluirá en el PDF.</p>
-                            </div>
-                        )}
-                        {!locationImagePreview && (
-                            <p className="text-xs text-gray-400 mt-2">Sube una imagen para incluirla en el reporte PDF.</p>
-                        )}
-                    </div>
-
-
-                    <hr className="border-gray-700 my-6" /> {/* Separator */}
-
-                    <h3 className="text-xl font-bold text-yellow-400 mb-4">Parámetros del Sistema Fotovoltaico</h3>
-                    <div className="mb-4">
-                      <label className="block text-gray-300 text-sm font-bold mb-2">
-                        Tipo de Sistema:
-                      </label>
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id="onGrid"
-                          name="systemType"
-                          value="on-grid"
-                          checked={systemType === 'on-grid'}
-                          onChange={(e) => setSystemType(e.target.value)}
-                          className="mr-2"
-                        />
-                        <label htmlFor="onGrid" className="text-gray-300 mr-4">On-Grid (Conectado a Red)</label>
-                        <input
-                          type="radio"
-                          id="offGrid"
-                          name="systemType"
-                          value="off-grid"
-                          checked={systemType === 'off-grid'}
-                          onChange={(e) => setSystemType(e.target.value)}
-                          className="mr-2"
-                        />
-                        <label htmlFor="offGrid" className="text-gray-300">Off-Grid (Aislado)</label>
+                            value={clientName}
+                            onChange={(e) => setClientName(e.target.value)}
+                            placeholder="Ej: Juan Pérez"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="clientAddress" className="block text-gray-300 text-sm font-bold mb-2">
+                            Dirección:
+                          </label>
+                          <input
+                            type="text"
+                            id="clientAddress"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                            value={clientAddress}
+                            onChange={(e) => setClientAddress(e.target.value)}
+                            placeholder="Ej: Av. Principal 123"
+                          />
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-gray-300 text-sm font-bold mb-2">
-                        Tipo de Fase:
-                      </label>
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id="monofasico"
-                          name="systemPhase"
-                          value="monofasico"
-                          checked={systemPhase === 'monofasico'}
-                          onChange={(e) => setSystemPhase(e.target.value)}
-                          className="mr-2"
-                        />
-                        <label htmlFor="monofasico" className="text-gray-300 mr-4">Monofásico</label>
-                        <input
-                          type="radio"
-                          id="trifasico"
-                          name="systemPhase"
-                          value="trifasico"
-                          checked={systemPhase === 'trifasico'}
-                          onChange={(e) => setSystemPhase(e.target.value)}
-                          className="mr-2"
-                        />
-                        <label htmlFor="trifasico" className="text-gray-300">Trifásico</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label htmlFor="clientProvincia" className="block text-gray-300 text-sm font-bold mb-2">
+                            Provincia:
+                          </label>
+                          <select
+                            id="clientProvincia"
+                            className="shadow border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                            value={selectedProvinceId}
+                            onChange={(e) => {
+                              const selectedOption = e.target.options[e.target.selectedIndex];
+                              setSelectedProvinceId(e.target.value);
+                              setSelectedProvinceName(selectedOption.text);
+                            }}
+                            disabled={isLoadingProvinces}
+                          >
+                            <option value="">
+                              {isLoadingProvinces ? 'Cargando provincias...' : (provinces.length === 0 && !isLoadingProvinces ? 'Error al cargar provincias' : 'Seleccione una provincia')}
+                            </option>
+                            {provinces.map(province => (
+                              <option key={province.id} value={province.id}>{province.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label htmlFor="clientLocalidad" className="block text-gray-300 text-sm font-bold mb-2">
+                            Localidad:
+                          </label>
+                          <select
+                            id="clientLocalidad"
+                            className="shadow border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                            value={selectedLocalidadId}
+                            onChange={(e) => {
+                              const selectedOption = e.target.options[e.target.selectedIndex];
+                              setSelectedLocalidadId(e.target.value);
+                              setSelectedLocalidadName(selectedOption.text);
+                            }}
+                            disabled={!selectedProvinceId || isLoadingLocalities}
+                          >
+                            <option value="">
+                              {!selectedProvinceId ? 'Seleccione una provincia primero' : (isLoadingLocalities ? 'Cargando localidades...' : (localities.length === 0 && !isLoadingLocalities ? 'Error al cargar localidades o no hay localidades' : 'Seleccione una localidad'))}
+                            </option>
+                            {localities.map(localidad => (
+                              <option key={localidad.id} value={localidad.id}>{localidad.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                    </div>
+                      {/* Coordenadas remain in a 2-column grid */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label htmlFor="latitude" className="block text-gray-300 text-sm font-bold mb-2">
+                            Latitud:
+                          </label>
+                          <input
+                            type="number"
+                            id="latitude"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                            value={latitude}
+                            onChange={(e) => setLatitude(e.target.value)}
+                            placeholder="Ej: -32.0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="longitude" className="block text-gray-300 text-sm font-bold mb-2">
+                            Longitud:
+                          </label>
+                          <input
+                            type="number"
+                            id="longitude"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                            value={longitude}
+                            onChange={(e) => setLongitude(e.target.value)}
+                            placeholder="Ej: -60.0"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-gray-400 text-xs mt-1 mb-2">
+                        Puede obtener la latitud y longitud de la dirección del cliente utilizando Google Maps.
+                        Busque la dirección, haga clic derecho en el mapa y seleccione "¿Qué hay aquí?".
+                        Las coordenadas aparecerán en la parte inferior.
+                      </p>
+                      <p className="text-gray-400 text-xs mb-4">
+                        <a href="https://www.google.com/maps/place/Paran%C3%A1,+Entre+R%C3%ADos/@-31.7473185,-60.5149631,12z/data=!3m1!4b1!4m6!3m5!1s0x95b44df2b9835231:0x554ebde0aa5cfa9a!8m2!3d-31.7413197!4d-60.5115471!16zL2m/MDM2eWt2?entry=ttu&g_ep=EgoyMDI1MDcwOS4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                          Buscar dirección en Google Maps
+                        </a>
+                      </p>
 
-                    {systemType === 'on-grid' ? (
+                      {/* Location Image Upload */}
+                      <div className="mb-4">
+                          <label htmlFor="locationImage" className="block text-gray-300 text-sm font-bold mb-2">
+                              Subir Foto de la Ubicación (Opcional):
+                          </label>
+                          <input
+                              type="file"
+                              id="locationImage"
+                              accept="image/*"
+                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                              onChange={handleLocationImageUpload}
+                          />
+                          {locationImagePreview && (
+                              <div className="mt-4 relative">
+                                  <img
+                                      src={locationImagePreview}
+                                      alt="Vista previa de la imagen de la ubicación"
+                                      className="max-w-full h-auto rounded-lg border border-gray-600"
+                                      onError={(e) => {
+                                          console.error("ERROR: Failed to load image preview:", e);
+                                          e.target.onerror = null; // Prevent infinite loop
+                                          e.target.src = 'https://placehold.co/200x150/FF0000/FFFFFF?text=Error+Carga+Imagen'; // Fallback to an error placeholder
+                                          showMessage('error', 'Error al cargar la vista previa de la imagen. Intente con otra imagen.');
+                                      }}
+                                  />
+                                  <button
+                                      onClick={() => setLocationImagePreview(null)}
+                                      className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full text-xs"
+                                      title="Eliminar imagen"
+                                  >
+                                      <i className="fas fa-times"></i>
+                                  </button>
+                                  <p className="text-xs text-gray-400 mt-2">La imagen se incluirá en el PDF.</p>
+                              </div>
+                          )}
+                          {!locationImagePreview && (
+                              <p className="text-xs text-gray-400 mt-2">Sube una imagen para incluirla en el reporte PDF.</p>
+                          )}
+                      </div>
+
+
+                      <hr className="border-gray-700 my-6" /> {/* Separator */}
+
+                      <h3 className="text-xl font-bold text-yellow-400 mb-4">Parámetros del Sistema Fotovoltaico</h3>
                       <div className="mb-4">
                         <label className="block text-gray-300 text-sm font-bold mb-2">
-                          Consumo Eléctrico Bimestral (kWh):
+                          Tipo de Sistema:
                         </label>
-                        {/* Modified this section for 2-column layout */}
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                          {bimonthlyPeriods.map(period => (
-                            <div key={period} className="flex items-center">
-                              <label htmlFor={`consumption-${period}`} className="w-20 text-gray-400 text-sm mr-2">
-                                {period}:
-                              </label>
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="onGrid"
+                            name="systemType"
+                            value="on-grid"
+                            checked={systemType === 'on-grid'}
+                            onChange={(e) => setSystemType(e.target.value)}
+                            className="mr-2"
+                          />
+                          <label htmlFor="onGrid" className="text-gray-300 mr-4">On-Grid (Conectado a Red)</label>
+                          <input
+                            type="radio"
+                            id="offGrid"
+                            name="systemType"
+                            value="off-grid"
+                            checked={systemType === 'off-grid'}
+                            onChange={(e) => setSystemType(e.target.value)}
+                            className="mr-2"
+                          />
+                          <label htmlFor="offGrid" className="text-gray-300">Off-Grid (Aislado)</label>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-gray-300 text-sm font-bold mb-2">
+                          Tipo de Fase:
+                        </label>
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="monofasico"
+                            name="systemPhase"
+                            value="monofasico"
+                            checked={systemPhase === 'monofasico'}
+                            onChange={(e) => setSystemPhase(e.target.value)}
+                            className="mr-2"
+                          />
+                          <label htmlFor="monofasico" className="text-gray-300 mr-4">Monofásico</label>
+                          <input
+                            type="radio"
+                            id="trifasico"
+                            name="systemPhase"
+                            value="trifasico"
+                            checked={systemPhase === 'trifasico'}
+                            onChange={(e) => setSystemPhase(e.target.value)}
+                            className="mr-2"
+                          />
+                          <label htmlFor="trifasico" className="text-gray-300">Trifásico</label>
+                        </div>
+                      </div>
+
+                      {systemType === 'on-grid' ? (
+                        <div className="mb-4">
+                          <label className="block text-gray-300 text-sm font-bold mb-2">
+                            Consumo Eléctrico Bimestral (kWh):
+                          </label>
+                          {/* Modified this section for 2-column layout */}
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                            {bimonthlyPeriods.map(period => (
+                              <div key={period} className="flex items-center">
+                                <label htmlFor={`consumption-${period}`} className="w-20 text-gray-400 text-sm mr-2">
+                                  {period}:
+                                </label>
+                                <input
+                                  type="number"
+                                  id={`consumption-${period}`}
+                                  className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                                  value={bimonthlyConsumption[period]}
+                                  onChange={(e) => handleBimonthlyInputChange(period, e.target.value)}
+                                  placeholder="kWh"
+                                  min="0"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-4">
+                          <h4 className="text-lg font-semibold text-gray-300 mb-2">Electrodomésticos y Otros Consumos:</h4>
+                          {/* Added headers for the appliance input columns */}
+                          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 items-center text-gray-400 text-sm font-semibold">
+                              <span className="col-span-1 sm:col-span-2">Nombre</span>
+                              <span>Potencia (W)</span>
+                              <span>Horas/día</span>
+                              <span>Cantidad</span>
+                              <span></span> {/* For the delete button column */}
+                          </div>
+                          {appliances.map((app, index) => (
+                            <div key={index} className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 items-center">
+                              <input
+                                type="text"
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700 col-span-1 sm:col-span-2"
+                                placeholder="Ej: Heladera, Luces LED, Otros"
+                                value={app.name}
+                                onChange={(e) => handleApplianceChange(index, 'name', e.target.value)}
+                              />
                               <input
                                 type="number"
-                                id={`consumption-${period}`}
                                 className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                                value={bimonthlyConsumption[period]}
-                                onChange={(e) => handleBimonthlyInputChange(period, e.target.value)}
-                                placeholder="kWh"
+                                placeholder="W"
+                                value={app.wattage}
+                                onChange={(e) => handleApplianceChange(index, 'wattage', e.target.value)}
                                 min="0"
                               />
+                              <input
+                                type="number"
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                                placeholder="Horas"
+                                value={app.hours}
+                                onChange={(e) => handleApplianceChange(index, 'hours', e.target.value)}
+                                min="0"
+                                step="0.1"
+                              />
+                              {/* New Quantity Input */}
+                              <input
+                                type="number"
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                                placeholder="Cant."
+                                value={app.quantity}
+                                onChange={(e) => handleApplianceChange(index, 'quantity', e.target.value)}
+                                min="1"
+                              />
+                              <button
+                                onClick={() => handleRemoveAppliance(index)}
+                                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg transition-colors duration-200"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
                             </div>
                           ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mb-4">
-                        <h4 className="text-lg font-semibold text-gray-300 mb-2">Electrodomésticos y Otros Consumos:</h4>
-                        {/* Added headers for the appliance input columns */}
-                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 items-center text-gray-400 text-sm font-semibold">
-                            <span className="col-span-1 sm:col-span-2">Nombre</span>
-                            <span>Potencia (W)</span>
-                            <span>Horas/día</span>
-                            <span>Cantidad</span>
-                            <span></span> {/* For the delete button column */}
-                        </div>
-                        {appliances.map((app, index) => (
-                          <div key={index} className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2 items-center">
-                            <input
-                              type="text"
-                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700 col-span-1 sm:col-span-2"
-                              placeholder="Ej: Heladera, Luces LED, Otros"
-                              value={app.name}
-                              onChange={(e) => handleApplianceChange(index, 'name', e.target.value)}
-                            />
-                            <input
-                              type="number"
-                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                              placeholder="W"
-                              value={app.wattage}
-                              onChange={(e) => handleApplianceChange(index, 'wattage', e.target.value)}
-                              min="0"
-                            />
-                            <input
-                              type="number"
-                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                              placeholder="Horas"
-                              value={app.hours}
-                              onChange={(e) => handleApplianceChange(index, 'hours', e.target.value)}
-                              min="0"
-                              step="0.1"
-                            />
-                            {/* New Quantity Input */}
-                            <input
-                              type="number"
-                              className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                              placeholder="Cant."
-                              value={app.quantity}
-                              onChange={(e) => handleApplianceChange(index, 'quantity', e.target.value)}
-                              min="1"
-                            />
-                            <button
-                              onClick={() => handleRemoveAppliance(index)}
-                              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg transition-colors duration-200"
-                            >
-                              <i className="fas fa-trash"></i>
-                            </button>
+                          <button
+                            onClick={handleAddAppliance}
+                            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg mt-2 transition-colors duration-200"
+                          >
+                            <i className="fas fa-plus mr-2"></i> Añadir Electrodoméstico/Otro
+                          </button>
+
+                          <div className="mt-4">
+                              <label htmlFor="daysAutonomy" className="block text-gray-300 text-sm font-bold mb-2">
+                                  Días de Autonomía (para Off-Grid):
+                              </label>
+                              <input
+                                  type="number"
+                                  id="daysAutonomy"
+                                  className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                                  value={daysAutonomy}
+                                  onChange={(e) => setDaysAutonomy(e.target.value)}
+                                  placeholder="Ej: 2 (días sin sol)"
+                                  min="1"
+                              />
                           </div>
-                        ))}
-                        <button
-                          onClick={handleAddAppliance}
-                          className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg mt-2 transition-colors duration-200"
-                        >
-                          <i className="fas fa-plus mr-2"></i> Añadir Electrodoméstico/Otro
-                        </button>
-
-                        <div className="mt-4">
-                            <label htmlFor="daysAutonomy" className="block text-gray-300 text-sm font-bold mb-2">
-                                Días de Autonomía (para Off-Grid):
-                            </label>
-                            <input
-                                type="number"
-                                id="daysAutonomy"
-                                className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
-                                value={daysAutonomy}
-                                onChange={(e) => setDaysAutonomy(e.target.value)}
-                                placeholder="Ej: 2 (días sin sol)"
-                                min="1"
-                            />
+                          <div className="mt-4">
+                              <label className="block text-gray-300 text-sm font-bold mb-2">
+                                  Tipo de Vivienda:
+                              </label>
+                              <div className="flex items-center">
+                                  <input
+                                      type="radio"
+                                      id="dwellingDaily"
+                                      name="dwellingType"
+                                      value="daily"
+                                      checked={dwellingType === 'daily'}
+                                      onChange={(e) => setDwellingType(e.target.value)}
+                                      className="mr-2"
+                                  />
+                                  <label htmlFor="dwellingDaily" className="text-gray-300 mr-4">Uso Diario</label>
+                                  <input
+                                      type="radio"
+                                      id="dwellingWeekend"
+                                      name="dwellingType"
+                                      value="weekend"
+                                      checked={dwellingType === 'weekend'}
+                                      onChange={(e) => setDwellingType(e.target.value)}
+                                      className="mr-2"
+                                  />
+                                  <label htmlFor="dwellingWeekend" className="text-gray-300">Fin de Semana</label>
+                              </div>
+                          </div>
                         </div>
-                        <div className="mt-4">
-                            <label className="block text-gray-300 text-sm font-bold mb-2">
-                                Tipo de Vivienda:
-                            </label>
-                            <div className="flex items-center">
-                                <input
-                                    type="radio"
-                                    id="dwellingDaily"
-                                    name="dwellingType"
-                                    value="daily"
-                                    checked={dwellingType === 'daily'}
-                                    onChange={(e) => setDwellingType(e.target.value)}
-                                    className="mr-2"
-                                />
-                                <label htmlFor="dwellingDaily" className="text-gray-300 mr-4">Uso Diario</label>
-                                <input
-                                    type="radio"
-                                    id="dwellingWeekend"
-                                    name="dwellingType"
-                                    value="weekend"
-                                    checked={dwellingType === 'weekend'}
-                                    onChange={(e) => setDwellingType(e.target.value)}
-                                    className="mr-2"
-                                />
-                                <label htmlFor="dwellingWeekend" className="text-gray-300">Fin de Semana</label>
-                            </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={dimensionPVSystem}
-                      disabled={isDimensionButtonDisabled()}
-                      className={`w-full mt-4 py-2 px-4 rounded-lg font-bold transition-all duration-300 ${
-                        isDimensioning || isFetchingSolarData ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'
-                      }`}
-                    >
-                      {isDimensioning || isFetchingSolarData ? (
-                        <span className="flex items-center justify-center">
-                          <i className="fas fa-spinner fa-spin mr-2"></i> {isFetchingSolarData ? 'Obteniendo datos solares...' : 'Calculando...'}
-                        </span>
-                      ) : (
-                        'Dimensionar Sistema Fotovoltaico'
                       )}
-                    </button>
 
-                    {dimensioningResult && (
-                      <div className="mt-4 p-3 bg-gray-900 rounded-lg text-gray-200 border border-gray-700 overflow-y-auto max-h-48">
-                        <p className="font-semibold text-yellow-300 mb-2">Resultado del Dimensionamiento:</p>
-                        {dimensioningResult.error ? (
-                          <p className="text-red-400">{dimensioningResult.error}</p>
-                        ) : (
-                          <>
-                            <p className="font-semibold text-yellow-300 mt-2">Datos del Cliente:</p>
-                            <p>Nombre: <span className="font-bold">{dimensioningResult.client.name}</span></p>
-                            <p>Dirección: <span className="font-bold">{dimensioningResult.client.address}</span></p>
-                            <p>Localidad: <span className="font-bold">{dimensioningResult.client.localidad}</span></p>
-                            <p>Provincia: <span className="font-bold">{dimensioningResult.client.provincia}</span></p>
-                            <p>Latitud: <span className="font-bold">{latitude}</span></p>
-                            <p>Longitud: <span className="font-bold">{longitude}</span></p>
-                            {dimensioningResult.systemType === 'off-grid' && (
-                                <p>Tipo de Vivienda: <span className="font-bold">{dimensioningResult.dwellingType === 'daily' ? 'Uso Diario' : 'Fin de Semana'}</span></p>
-                            )}
-                            
-                            <p className="font-semibold text-yellow-300 mt-4">Detalles del Sistema:</p>
-                            <p>Tipo de Sistema: <span className="font-bold">{dimensioningResult.systemType === 'on-grid' ? 'On-Grid (Conectado a Red)' : 'Off-Grid (Aislado)'}</span></p>
-                            <p>Tipo de Fase: <span className="font-bold">{dimensioningResult.systemPhase === 'monofasico' ? 'Monofásico' : 'Trifásico'}</span></p>
-                            <p>Horas de Sol Pico (PSH) Obtenidas: <span className="font-bold">{dimensioningResult.fetchedPeakSunHours.toFixed(2)} horas/día</span></p>
-                            <p>Potencia de Array PV Requerida: <span className="font-bold">{dimensioningResult.requiredPVArrayWp} Wp</span></p>
-                            <p>Cantidad de Paneles (550Wp c/u): <span className="font-bold">{dimensioningResult.numberOfPanels} unidades</span></p>
-                            
-                            {dimensioningResult.selectedInverter && (
-                                <>
-                                    <p className="font-semibold text-yellow-300 mt-2">Inversor Seleccionado:</p>
-                                    <p>Potencia: <span className="font-bold">{dimensioningResult.selectedInverter.power_kW} kW</span></p>
-                                    <p>Voltaje AC: <span className="font-bold">{dimensioningResult.selectedInverter.voltage_ac_V}V</span></p>
-                                    {dimensioningResult.selectedInverter.voltage_dc_V && (
-                                        <p>Voltaje DC: <span className="font-bold">{dimensioningResult.selectedInverter.voltage_dc_V}V</span></p>
-                                    )}
-                                    <p>Fase: <span className="font-bold">{dimensioningResult.selectedInverter.phase === 'monofasico' ? 'Monofásico' : 'Trifásico'}</span></p>
-                                    {dimensioningResult.selectedInverter.quantity > 1 && (
-                                        <p>Cantidad: <span className="font-bold">{dimensioningResult.selectedInverter.quantity} unidades</span></p>
-                                    )}
-                                </>
-                            )}
-
-                            {dimensioningResult.systemType === 'off-grid' && (
-                              <>
-                                <p>Consumo Diario Total: <span className="font-bold">{dimensioningResult.totalDailyConsumptionWh.toFixed(2)} Wh/día</span></p>
-                                <p>Días de Autonomía: <span className="font-bold">{dimensioningResult.daysAutonomy} días</span></p>
-                                
-                                {dimensioningResult.selectedBattery && (
-                                    <>
-                                        <p className="font-semibold text-yellow-300 mt-2">Batería Seleccionada:</p>
-                                        <p>Material: <span className="font-bold">{dimensioningResult.selectedBattery.material}</span></p>
-                                        <p>Voltaje: <span className="font-bold">{dimensioningResult.selectedBattery.voltage_V}V</span></p>
-                                        <p>Capacidad: <span className="font-bold">{dimensioningResult.selectedBattery.capacity_Ah} Ah</span> ({dimensioningResult.selectedBattery.capacity_kWh} kWh)</p>
-                                        {dimensioningResult.selectedBattery.quantity > 1 && (
-                                            <p>Cantidad: <span className="font-bold">{dimensioningResult.selectedBattery.quantity} unidades</span></p>
-                                        )}
-                                    </>
-                                )}
-                              </>
-                            )}
-                            <p className="text-xs text-gray-500 mt-2">
-                              *Este es un cálculo estimado. Para un dimensionamiento preciso, consulte a un ingeniero especializado.
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {dimensioningResult && !dimensioningResult.error && (
                       <button
-                        onClick={generatePdfPresentation}
-                        disabled={isGeneratingPdf || !arePdfLibsLoaded || isLogoLoading}
-                        className={`w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 flex items-center justify-center mt-4`}
+                        onClick={dimensionPVSystem}
+                        disabled={isDimensionButtonDisabled()}
+                        className={`w-full mt-4 py-2 px-4 rounded-lg font-bold transition-all duration-300 ${
+                          isDimensioning || isFetchingSolarData ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
                       >
-                        {isGeneratingPdf ? (
+                        {isDimensioning || isFetchingSolarData ? (
                           <span className="flex items-center justify-center">
-                            <i className="fas fa-spinner fa-spin mr-2"></i> Generando PDF...
-                          </span>
-                        ) : isLogoLoading ? (
-                          <span className="flex items-center justify-center">
-                            <i className="fas fa-spinner fa-spin mr-2"></i> Cargando logo...
+                            <i className="fas fa-spinner fa-spin mr-2"></i> {isFetchingSolarData ? 'Obteniendo datos solares...' : 'Calculando...'}
                           </span>
                         ) : (
-                          <>
-                            <i className="fas fa-file-pdf mr-3"></i> Descargar Presentación PDF
-                          </>
+                          'Dimensionar Sistema Fotovoltaico'
                         )}
                       </button>
-                    )}
-                  </div>
-                )}
 
-                {/* WhatsApp Button */}
-                <button
-                  onClick={handleWhatsAppClick}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center mt-4"
-                >
-                  <i className="fab fa-whatsapp mr-3 text-xl"></i> ¡Quiero mi Propia Energía!
-                </button>
+                      {dimensioningResult && (
+                        <div className="mt-4 p-3 bg-gray-900 rounded-lg text-gray-200 border border-gray-700 overflow-y-auto max-h-48">
+                          <p className="font-semibold text-yellow-300 mb-2">Resultado del Dimensionamiento:</p>
+                          {dimensioningResult.error ? (
+                            <p className="text-red-400">{dimensioningResult.error}</p>
+                          ) : (
+                            <>
+                              <p className="font-semibold text-yellow-300 mt-2">Datos del Cliente:</p>
+                              <p>Nombre: <span className="font-bold">{dimensioningResult.client.name}</span></p>
+                              <p>Dirección: <span className="font-bold">{dimensioningResult.client.address}</span></p>
+                              <p>Localidad: <span className="font-bold">{dimensioningResult.client.localidad}</span></p>
+                              <p>Provincia: <span className="font-bold">{dimensioningResult.client.provincia}</span></p>
+                              <p>Latitud: <span className="font-bold">{latitude}</span></p>
+                              <p>Longitud: <span className="font-bold">{longitude}</span></p>
+                              {dimensioningResult.systemType === 'off-grid' && (
+                                  <p>Tipo de Vivienda: <span className="font-bold">{dimensioningResult.dwellingType === 'daily' ? 'Uso Diario' : 'Fin de Semana'}</span></p>
+                              )}
+                              
+                              <p className="font-semibold text-yellow-300 mt-4">Detalles del Sistema:</p>
+                              <p>Tipo de Sistema: <span className="font-bold">{dimensioningResult.systemType === 'on-grid' ? 'On-Grid (Conectado a Red)' : 'Off-Grid (Aislado)'}</span></p>
+                              <p>Tipo de Fase: <span className="font-bold">{dimensioningResult.systemPhase === 'monofasico' ? 'Monofásico' : 'Trifásico'}</span></p>
+                              <p>Horas de Sol Pico (PSH) Obtenidas: <span className="font-bold">{dimensioningResult.fetchedPeakSunHours.toFixed(2)} horas/día</span></p>
+                              <p>Potencia de Array PV Requerida: <span className="font-bold">{dimensioningResult.requiredPVArrayWp} Wp</span></p>
+                              <p>Cantidad de Paneles (550Wp c/u): <span className="font-bold">{dimensioningResult.numberOfPanels} unidades</span></p>
+                              
+                              {dimensioningResult.selectedInverter && (
+                                  <>
+                                      <p className="font-semibold text-yellow-300 mt-2">Inversor Seleccionado:</p>
+                                      <p>Potencia: <span className="font-bold">{dimensioningResult.selectedInverter.power_kW} kW</span></p>
+                                      <p>Voltaje AC: <span className="font-bold">{dimensioningResult.selectedInverter.voltage_ac_V}V</span></p>
+                                      {dimensioningResult.selectedInverter.voltage_dc_V && (
+                                          <p>Voltaje DC: <span className="font-bold">{dimensioningResult.selectedInverter.voltage_dc_V}V</span></p>
+                                      )}
+                                      <p>Fase: <span className="font-bold">{dimensioningResult.selectedInverter.phase === 'monofasico' ? 'Monofásico' : 'Trifásico'}</span></p>
+                                      {dimensioningResult.selectedInverter.quantity > 1 && (
+                                          <p>Cantidad: <span className="font-bold">{dimensioningResult.selectedInverter.quantity} unidades</span></p>
+                                      )}
+                                  </>
+                              )}
 
-                <p className="text-center text-gray-400 text-xs mt-6">
-                  Dimensionamiento preliminar. Los valores reales finales pueden variar.
-                </p>
-                <p className="text-center text-gray-400 text-xs mt-2">
-                  Sistema creado por REDERAR, Todos los derechos Reservados ©
-                </p>
+                              {dimensioningResult.systemType === 'off-grid' && (
+                                <>
+                                  <p>Consumo Diario Total: <span className="font-bold">{dimensioningResult.totalDailyConsumptionWh.toFixed(2)} Wh/día</span></p>
+                                  <p>Días de Autonomía: <span className="font-bold">{dimensioningResult.daysAutonomy} días</span></p>
+                                  
+                                  {dimensioningResult.selectedBattery && (
+                                      <>
+                                          <p className="font-semibold text-yellow-300 mt-2">Batería Seleccionada:</p>
+                                          <p>Material: <span className="font-bold">{dimensioningResult.selectedBattery.material}</span></p>
+                                          <p>Voltaje: <span className="font-bold">{dimensioningResult.selectedBattery.voltage_V}V</span></p>
+                                          <p>Capacidad: <span className="font-bold">{dimensioningResult.selectedBattery.capacity_Ah} Ah</span> ({dimensioningResult.selectedBattery.capacity_kWh} kWh)</p>
+                                          {dimensioningResult.selectedBattery.quantity > 1 && (
+                                              <p>Cantidad: <span className="font-bold">{dimensioningResult.selectedBattery.quantity} unidades</span></p>
+                                          )}
+                                      </>
+                                  )}
+                                </>
+                              )}
+                              <p className="text-xs text-gray-500 mt-2">
+                                *Este es un cálculo estimado. Para un dimensionamiento preciso, consulte a un ingeniero especializado.
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Financial Projection Input and Output */}
+                  {dimensioningResult && !dimensioningResult.error && ( // Only show if dimensioning is successful
+                    <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                      <h3 className="text-xl font-bold text-yellow-400 mb-4">Calcula tu Ahorro Financiero</h3>
+                      <div className="mb-4">
+                        <label htmlFor="currentMonthlyBill" className="block text-gray-300 text-sm font-bold mb-2">
+                          Última Factura Mensual (ARS):
+                        </label>
+                        <input
+                          type="number"
+                          id="currentMonthlyBill"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={currentMonthlyBill}
+                          onChange={(e) => setCurrentMonthlyBill(e.target.value)}
+                          placeholder="Ej: 15000"
+                          min="0"
+                        />
+                      </div>
+                      <div className="mb-4">
+                        <label htmlFor="initialSystemCost" className="block text-gray-300 text-sm font-bold mb-2">
+                          Costo Inicial del Sistema Solar (ARS):
+                        </label>
+                        <input
+                          type="number"
+                          id="initialSystemCost"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={initialSystemCost}
+                          onChange={(e) => setInitialSystemCost(e.target.value)}
+                          placeholder="Ej: 250000"
+                          min="0"
+                        />
+                      </div>
+                      <div className="mb-4">
+                        <label htmlFor="estimatedBillReductionPercentage" className="block text-gray-300 text-sm font-bold mb-2">
+                          Porcentaje de Reducción de Factura Estimado (%):
+                        </label>
+                        <input
+                          type="number"
+                          id="estimatedBillReductionPercentage"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={estimatedBillReductionPercentage}
+                          onChange={(e) => setEstimatedBillReductionPercentage(e.target.value)}
+                          placeholder="Ej: 70"
+                          min="0"
+                          max="100"
+                        />
+                      </div>
+                      {/* Removed monthlyEnergyIncreaseRate input */}
+                      <div className="mb-4">
+                        <label htmlFor="projectionYears" className="block text-gray-300 text-sm font-bold mb-2">
+                          Años de Proyección:
+                        </label>
+                        <input
+                          type="number"
+                          id="projectionYears"
+                          className="shadow appearance-none border rounded w-full py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700"
+                          value={projectionYears}
+                          onChange={(e) => setProjectionYears(e.target.value)}
+                          placeholder="Ej: 20"
+                          min="1"
+                        />
+                      </div>
+
+                      {financialProjectionResult.isValid && (
+                        <div className="mt-4 p-3 bg-gray-900 rounded-lg text-gray-200 border border-gray-700">
+                          <p className="font-semibold text-yellow-300 mb-2">Resultados de la Proyección:</p>
+                          <p>Ahorro Mensual Estimado (inicial): <span className="font-bold">ARS {financialProjectionResult.monthlySavingsFromSolar}</span></p>
+                          <p>Ahorro Anual Estimado (inicial): <span className="font-bold">ARS {financialProjectionResult.annualSavingsFromSolar}</span></p>
+                          <p>Período de Retorno de la Inversión (Payback): <span className="font-bold">{financialProjectionResult.paybackPeriodYears} años</span></p>
+                          <p>Ahorro Total Proyectado ({projectionYears} años): <span className="font-bold">ARS {financialProjectionResult.totalSavingsOverYears}</span></p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            *Esta proyección es una estimación simplificada y se basa en la factura mensual actual. No considera aumentos futuros en el costo de la energía ni otros costos de mantenimiento.
+                          </p>
+                          {/* New disclaimers added here */}
+                          <p className="text-xs text-gray-500 mt-2">
+                            * Esta es una estimación basada en promedios. El ahorro real puede variar según el consumo, ubicación y otros factores.
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            * Este es un cálculo aproximado y estimado basado en las tarifas eléctricas corrientes del mes en curso.
+                          </p>
+                        </div>
+                      )}
+                      {!financialProjectionResult.isValid && (
+                        <div className="mt-4 p-3 bg-red-600 rounded-lg text-white font-semibold">
+                          Por favor, complete todos los campos de la proyección financiera con valores válidos.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PDF Button - Now conditional on both dimensioning and financial projection being valid */}
+                  {dimensioningResult && !dimensioningResult.error && financialProjectionResult.isValid && (
+                    <button
+                      onClick={generatePdfPresentation}
+                      disabled={isGeneratingPdf || !arePdfLibsLoaded || isLogoLoading}
+                      className={`w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 flex items-center justify-center mt-4`}
+                    >
+                      {isGeneratingPdf ? (
+                        <span className="flex items-center justify-center">
+                          <i className="fas fa-spinner fa-spin mr-2"></i> Generando PDF...
+                        </span>
+                      ) : isLogoLoading ? (
+                        <span className="flex items-center justify-center">
+                          <i className="fas fa-spinner fa-spin mr-2"></i> Cargando logo...
+                        </span>
+                      ) : (
+                        <>
+                          <i className="fas fa-file-pdf mr-3"></i> Descargar Presentación PDF
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* WhatsApp Button */}
+                  <button
+                    onClick={handleWhatsAppClick}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-102 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center mt-4"
+                  >
+                    <i className="fab fa-whatsapp mr-3 text-xl"></i> ¡Quiero mi Propia Energía!
+                  </button>
+
+                  <p className="text-center text-gray-400 text-xs mt-6">
+                    Dimensionamiento preliminar. Los valores reales finales pueden variar.
+                  </p>
+                  <p className="text-center text-gray-400 text-xs mt-2">
+                    Sistema creado por REDERAR, Todos los derechos Reservados ©
+                  </p>
+                </> {/* Closed React Fragment here */}
               </div>
             </div>
           );
@@ -1607,3 +1852,4 @@
     </script>
 </body>
 </html>
+
