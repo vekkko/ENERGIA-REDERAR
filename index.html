@@ -3,56 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>REDERAR - Simulador Solar</title>
+    <title>Dimensionamiento de Sistemas Solares y Termotanques Solares REDERAR</title>
+    <!-- Favicon: El ícono en la pestaña del navegador -->
     <link rel="icon" type="image/jpeg" href="https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg">
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #002244;
+            background-color: #002244; /* Deep blue from the logo */
         }
         .rederar-yellow {
-            color: #FFC107;
+            color: #FFC107; /* Yellow from the sun in the logo */
         }
         .rederar-blue {
-            color: #0056B3;
+            color: #0056B3; /* A medium blue from the wave in the logo */
         }
         .bg-rederar-blue {
             background-color: #0056B3;
         }
-        .bg-rederar-light-blue {
-            background-color: #007bff;
-        }
+        /* Estilo para botones deshabilitados */
         .disabled-button {
             opacity: 0.6;
             cursor: not-allowed;
         }
-        /* New styles for the unified layout */
-        .grid-container {
-            display: grid;
-            gap: 2rem;
-            grid-template-columns: repeat(1, minmax(0, 1fr));
+        /* Estilo para el botón de eliminar artefacto */
+        .remove-btn {
+            background-color: #ef4444; /* tailwind red-500 */
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px; /* full rounded */
+            transition: all 0.3s ease;
         }
-        @media (min-width: 768px) {
-            .grid-container {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
+        .remove-btn:hover {
+            background-color: #dc2626; /* tailwind red-600 */
         }
     </style>
 </head>
 <body class="p-4 sm:p-8">
 
+    <!-- Main Container -->
     <div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden p-6 sm:p-10">
+        <!-- Logo and Title -->
         <div class="flex flex-col items-center mb-8">
+            <!-- Logo principal de la página -->
             <img src="https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg" alt="Logo de REDERAR" class="mb-4 h-24 object-contain rounded-full">
-            <h1 class="text-4xl font-extrabold text-center text-gray-800 mb-2">
-                DIMENSIONAMIENTO INICIAL SISTEMA SOLAR
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 sm:text-4xl">
+                DIMENSIONAMIENTO INICIAL SISTEMAS SOLARES Y TERMOTANQUES SOLARES
             </h1>
-            <p class="text-center text-gray-600">Dimensiona tu sistema On-Grid o Off-Grid y solicita una cotización.</p>
+            <p class="text-center text-gray-600">Dimensiona tu sistema On-Grid, Off-Grid o Termotanque Solar y solicita una cotización.</p>
         </div>
 
+        <!-- Client Information Section -->
         <div class="bg-rederar-blue p-6 rounded-xl shadow-lg mb-10 border border-blue-600">
             <div class="flex items-center mb-4 text-white">
                 <div class="bg-white p-3 rounded-full text-rederar-blue mr-4 shadow-md">
@@ -60,7 +64,7 @@
                 </div>
                 <h2 class="text-2xl font-bold">Datos del Cliente</h2>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
                     <label for="clientName" class="block text-sm font-medium text-white">Nombre Completo</label>
                     <input type="text" id="clientName" class="client-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border" placeholder="Juan Pérez">
@@ -70,155 +74,237 @@
                     <input type="tel" id="clientPhone" class="client-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border" placeholder="+5493434802264">
                 </div>
                 <div>
-                    <label for="clientAddress" class="block text-sm font-medium text-white">Dirección</label>
-                    <input type="text" id="clientAddress" class="client-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border" placeholder="Av. Siempre Viva 742, Paraná">
+                    <label for="clientProvince" class="block text-sm font-medium text-white">Provincia</label>
+                    <select id="clientProvince" class="client-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border">
+                        <option value="">Selecciona una provincia</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="clientLocality" class="block text-sm font-medium text-white">Localidad</label>
+                    <select id="clientLocality" class="client-input mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border" disabled>
+                        <option value="">Selecciona una provincia primero</option>
+                    </select>
                 </div>
             </div>
         </div>
-
-        <div class="grid-container">
-            <div>
-                <div class="bg-gray-100 p-6 rounded-xl shadow-lg border border-gray-200 mb-8">
-                    <div class="flex items-center mb-4">
-                        <div class="bg-rederar-blue p-3 rounded-full text-white mr-4 shadow-md">
-                            <i class="fas fa-plug"></i>
-                        </div>
-                        <h2 class="text-2xl font-bold text-rederar-blue">Sistema On-Grid</h2>
+        
+        <!-- On-Grid and Off-Grid Calculators Container -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <!-- On-Grid Calculator Section -->
+            <div class="bg-gray-100 p-6 rounded-xl shadow-lg border border-gray-200">
+                <div class="flex items-center mb-4">
+                    <div class="bg-rederar-blue p-3 rounded-full text-white mr-4 shadow-md">
+                        <i class="fas fa-plug"></i>
                     </div>
-                    <p class="text-gray-600 mb-6">Calcula el tamaño del sistema solar conectado a la red. Ingresa tu consumo anual y la provincia.</p>
-                    
-                    <div class="space-y-4 mb-6">
-                        <div>
-                            <label for="annualConsumption" class="block text-sm font-medium text-gray-700">Consumo Anual de Energía (kWh)</label>
-                            <input type="number" id="annualConsumption" class="pv-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 3500" min="0">
-                        </div>
-                        <div>
-                            <label for="provinceOnGrid" class="block text-sm font-medium text-gray-700">Provincia</label>
-                            <select id="provinceOnGrid" class="pv-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
-                                <option value="">Selecciona una provincia</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div id="onGridResults" class="hidden mt-6 transition-all duration-300">
-                        <div id="onGridErrorMessage" class="text-red-600 text-sm font-semibold mb-2"></div>
-                        <div id="onGridSuccessContent" class="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-300">
-                            </div>
-                    </div>
-
-                    <div class="mt-6 flex flex-col gap-2">
-                        <button id="calculateOnGridBtn" onclick="calculateOnGridSystem()" disabled class="w-full bg-rederar-blue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 disabled-button">
-                            Calcular Sistema On-Grid
-                        </button>
-                        <p class="text-sm text-gray-500 text-center">Para calcular el sistema debe tener cargado datos del cliente.</p>
-                    </div>
-                    <button onclick="sendOnGridQuoteRequest()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 mt-4">
-                        <i class="fab fa-whatsapp mr-2"></i> Solicitar Cotización On-Grid
-                    </button>
+                    <h2 class="text-2xl font-bold text-rederar-blue">Sistema On-Grid</h2>
                 </div>
-                
-                <div class="bg-gray-100 p-6 rounded-xl shadow-lg border border-gray-200">
-                    <div class="flex items-center mb-4">
-                        <div class="bg-rederar-blue p-3 rounded-full text-white mr-4 shadow-md">
-                            <i class="fas fa-solar-panel"></i>
-                        </div>
-                        <h2 class="text-2xl font-bold text-rederar-blue">Sistema Off-Grid</h2>
+                <p class="text-gray-600 mb-6">Calcula el tamaño del sistema solar conectado a la red. Ingresa tu consumo anual y la provincia para obtener la estimación.</p>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label for="annualKwh" class="block text-sm font-medium text-gray-700">Consumo anual (kWh)</label>
+                        <input type="number" id="annualKwh" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border" placeholder="e.g., 3000">
                     </div>
-                    <p class="text-gray-600 mb-6">Calcula los componentes para un sistema aislado. Agrega tus artefactos y selecciona la provincia.</p>
-                    
-                    <div class="space-y-4 mb-6">
+                    <div>
+                        <label for="provinceOnGrid" class="block text-sm font-medium text-gray-700">Provincia (para cálculo)</label>
+                        <select id="provinceOnGrid" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border">
+                            <option value="">Selecciona una provincia</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="onGridResults" class="hidden mt-6 transition-all duration-300">
+                    <div id="onGridErrorMessage" class="text-red-600 text-sm font-semibold mb-2"></div>
+                    <div id="onGridSuccessContent" class="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-300">
+                        <!-- Results will be dynamically populated here -->
+                    </div>
+                </div>
+
+                <div class="mt-6 flex flex-col gap-2">
+                    <button id="calculateOnGridBtn" onclick="c1()" disabled class="w-full bg-rederar-blue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 disabled-button">
+                        Calcular Sistema On-Grid
+                    </button>
+                    <!-- Mensaje para indicar al usuario que debe completar los datos del cliente -->
+                    <p class="text-sm text-gray-500 text-center">Para calcular el sistema debe tener cargado datos del cliente.</p>
+                </div>
+                <button onclick="s1()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 mt-4">
+                    <i class="fab fa-whatsapp mr-2"></i> Solicitar Cotización
+                </button>
+            </div>
+
+            <!-- Off-Grid Calculator Section -->
+            <div class="bg-gray-100 p-6 rounded-xl shadow-lg border border-gray-200">
+                <div class="flex items-center mb-4">
+                    <div class="bg-rederar-blue p-3 rounded-full text-white mr-4 shadow-md">
+                        <i class="fas fa-battery-three-quarters"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-rederar-blue">Sistema Off-Grid</h2>
+                </div>
+                <p class="text-gray-600 mb-6">Calcula los componentes para un sistema aislado. Agrega tus artefactos y selecciona la provincia para obtener la estimación.</p>
+                
+                <div class="space-y-4 mb-6">
+                    <!-- New: Predefined Appliance Selection -->
+                    <div>
+                        <label for="predefinedAppliances" class="block text-sm font-medium text-gray-700">Seleccionar Artefacto Común</label>
+                        <select id="predefinedAppliances" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" onchange="s3_appliance(event)">
+                            <option value="">Selecciona un artefacto</option>
+                        </select>
+                    </div>
+
+                    <div class="border-t border-gray-300 my-4"></div>
+
+                    <!-- Artifact Input Form -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 items-end">
                         <div>
-                            <label for="artefactList" class="block text-sm font-medium text-gray-700">Consumo Diario (W)</label>
-                            <div id="artefactContainer" class="space-y-2">
-                                <div class="flex gap-2">
-                                    <input type="text" placeholder="Artefacto (ej. Heladera)" class="artefact-name w-full rounded-md border-gray-300 shadow-sm p-2 border">
-                                    <input type="number" placeholder="Potencia (W)" class="artefact-watts w-full rounded-md border-gray-300 shadow-sm p-2 border" min="1">
-                                    <input type="number" placeholder="Horas/día" class="artefact-hours w-full rounded-md border-gray-300 shadow-sm p-2 border" min="1">
-                                    <button onclick="removeArtefact(this)" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full h-10 w-10 flex items-center justify-center">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <button onclick="addArtefactInput()" class="w-full bg-rederar-light-blue hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-lg transition duration-300 mt-2">
-                                <i class="fas fa-plus mr-2"></i>Añadir Artefacto
+                            <label for="applianceName" class="block text-sm font-medium text-gray-700">Nombre</label>
+                            <input type="text" id="applianceName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., Heladera">
+                        </div>
+                        <div>
+                            <label for="applianceQuantity" class="block text-sm font-medium text-gray-700">Cantidad</label>
+                            <input type="number" id="applianceQuantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 1">
+                        </div>
+                        <div>
+                            <label for="applianceConsumption" class="block text-sm font-medium text-gray-700">Consumo (W)</label>
+                            <input type="number" id="applianceConsumption" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 100">
+                        </div>
+                        <div>
+                            <label for="applianceHours" class="block text-sm font-medium text-gray-700">Horas/día</label>
+                            <input type="number" id="applianceHours" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 24">
+                        </div>
+                        <div class="col-span-2 sm:col-span-4">
+                            <button onclick="a1()" class="w-full bg-rederar-blue hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-300">
+                                Agregar Artefacto
                             </button>
                         </div>
-                        <div>
-                            <label for="provinceOffGrid" class="block text-sm font-medium text-gray-700">Provincia</label>
-                            <select id="provinceOffGrid" class="pv-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
-                                <option value="">Selecciona una provincia</option>
-                            </select>
-                        </div>
                     </div>
-                    
-                    <div id="offGridResults" class="hidden mt-6 transition-all duration-300">
-                        <div id="offGridErrorMessage" class="text-red-600 text-sm font-semibold mb-2"></div>
-                        <div id="offGridSuccessContent" class="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-300">
-                            </div>
+
+                    <!-- Artifacts Table -->
+                    <div class="overflow-x-auto shadow rounded-lg border border-gray-300">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-200">
+                                <tr>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artefacto</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cant.</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consumo (W)</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hs/día</th>
+                                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consumo Diario (kWh)</th>
+                                    <th scope="col" class="px-3 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="artifactTableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Table rows will be inserted here by JavaScript -->
+                            </tbody>
+                        </table>
                     </div>
-                    
-                    <div class="mt-6 flex flex-col gap-2">
-                        <button id="calculateOffGridBtn" onclick="calculateOffGridSystem()" disabled class="w-full bg-rederar-blue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 disabled-button">
-                            Calcular Sistema Off-Grid
-                        </button>
-                        <p class="text-sm text-gray-500 text-center">Para calcular el sistema debe tener cargado datos del cliente.</p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label for="totalDailyConsumption" class="block text-sm font-bold text-gray-700">Consumo diario total:</label>
+                        <span id="totalDailyConsumption" class="mt-1 text-lg font-bold text-rederar-blue">0.00 kWh</span>
                     </div>
-                    <button onclick="sendOffGridQuoteRequest()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 mt-4">
-                        <i class="fab fa-whatsapp mr-2"></i> Solicitar Cotización Off-Grid
+                    <div>
+                        <label for="autonomyDays" class="block text-sm font-medium text-gray-700">Días de autonomía de la batería</label>
+                        <input type="number" id="autonomyDays" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 2">
+                    </div>
+                    <div>
+                        <label for="provinceOffGrid" class="block text-sm font-medium text-gray-700">Provincia (para cálculo)</label>
+                        <select id="provinceOffGrid" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                            <option value="">Selecciona una provincia</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="offGridResults" class="hidden mt-6 transition-all duration-300">
+                    <div id="offGridErrorMessage" class="text-red-600 text-sm font-semibold mb-2"></div>
+                    <div id="offGridSuccessContent" class="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-300">
+                        <!-- Results will be dynamically populated here -->
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex flex-col gap-2">
+                    <button id="calculateOffGridBtn" onclick="c2()" disabled class="w-full bg-rederar-blue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 disabled-button">
+                        Calcular Sistema Off-Grid
                     </button>
+                    <!-- Mensaje para indicar al usuario que debe completar los datos del cliente -->
+                    <p class="text-sm text-gray-500 text-center">Para calcular el sistema debe tener cargado datos del cliente.</p>
+                </div>
+                <button onclick="s2()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 mt-4">
+                    <i class="fab fa-whatsapp mr-2"></i> Solicitar Cotización
+                </button>
+            </div>
+        </div>
+
+        <!-- NEW: Solar Water Heater Section -->
+        <div class="mt-10 bg-gray-100 p-6 rounded-xl shadow-lg border border-gray-200">
+            <div class="flex items-center mb-4">
+                <div class="bg-rederar-blue p-3 rounded-full text-white mr-4 shadow-md">
+                    <i class="fas fa-fire-extinguisher"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-rederar-blue">Termotanques Solares</h2>
+            </div>
+            <p class="text-gray-600 mb-6">Dimensiona el termotanque solar ideal para tu vivienda y solicita una cotización. Responde las siguientes preguntas.</p>
+
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label for="peopleCount" class="block text-sm font-medium text-gray-700">Cantidad de personas en la vivienda</label>
+                    <input type="number" id="peopleCount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border" placeholder="e.g., 4">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">¿Hay menores de 10 años en la vivienda?</label>
+                    <div class="mt-2 space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="childrenUnder10" value="yes" class="form-radio text-rederar-blue" checked>
+                            <span class="ml-2 text-gray-700">Sí</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="childrenUnder10" value="no" class="form-radio text-rederar-blue">
+                            <span class="ml-2 text-gray-700">No</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">¿Utilizará una bomba presurizadora?</label>
+                    <div class="mt-2 space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="pressurizerPump" value="yes" class="form-radio text-rederar-blue" checked>
+                            <span class="ml-2 text-gray-700">Sí</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="pressurizerPump" value="no" class="form-radio text-rederar-blue">
+                            <span class="ml-2 text-gray-700">No</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label for="waterType" class="block text-sm font-medium text-gray-700">¿El agua de suministro es salada o dulce?</label>
+                    <select id="waterType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                        <option value="dulce">Dulce</option>
+                        <option value="salada">Salada</option>
+                    </select>
                 </div>
             </div>
 
-            <div>
-                <div class="bg-gray-100 p-6 rounded-xl shadow-lg border border-gray-200">
-                    <div class="flex items-center mb-4">
-                        <div class="bg-rederar-blue p-3 rounded-full text-white mr-4 shadow-md">
-                            <i class="fas fa-water"></i>
-                        </div>
-                        <h2 class="text-2xl font-bold text-rederar-blue">Dimensionamiento de Termotanque Solar</h2>
-                    </div>
-                    <p class="text-gray-600 mb-6">Calcula la capacidad ideal del termotanque solar y el número de tubos para tu hogar.</p>
-
-                    <div class="space-y-4 mb-6">
-                        <div>
-                            <label for="numPeople" class="block text-sm font-medium text-gray-700">Número de personas en el hogar</label>
-                            <input type="number" id="numPeople" class="thermal-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 4" min="1">
-                        </div>
-                        <div>
-                            <label for="provinceThermal" class="block text-sm font-medium text-gray-700">Provincia</label>
-                            <select id="provinceThermal" class="thermal-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
-                                <option value="">Selecciona una provincia</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="thermalResults" class="hidden mt-6 transition-all duration-300">
-                        <div id="thermalErrorMessage" class="text-red-600 text-sm font-semibold mb-2"></div>
-                        <div id="thermalSuccessContent" class="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-300">
-                            </div>
-                    </div>
-                    
-                    <div class="mt-6 flex flex-col gap-2">
-                        <button id="calculateThermalBtn" onclick="calculateThermalSystem()" disabled class="w-full bg-rederar-blue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 disabled-button">
-                            Calcular Termotanque Solar
-                        </button>
-                        <p class="text-sm text-gray-500 text-center">Para calcular el sistema debe tener cargado datos del cliente.</p>
-                    </div>
-                    <button onclick="sendThermalQuoteRequest()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 mt-4">
-                        <i class="fab fa-whatsapp mr-2"></i> Solicitar Cotización Termotanque
-                    </button>
+            <div id="solarThermotankResults" class="hidden mt-6 transition-all duration-300">
+                <div id="thermotankErrorMessage" class="text-red-600 text-sm font-semibold mb-2"></div>
+                <div id="thermotankSuccessContent" class="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-300">
+                    <!-- Results will be dynamically populated here -->
                 </div>
             </div>
+
+            <div class="mt-6 flex flex-col gap-2">
+                <button id="calculateThermotankBtn" onclick="c3()" disabled class="w-full bg-rederar-blue hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 disabled-button">
+                    Calcular Termotanque Solar
+                </button>
+                <p class="text-sm text-gray-500 text-center">Para calcular el sistema debe tener cargado datos del cliente.</p>
+            </div>
+            <button onclick="s3_thermotank()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 mt-4">
+                    <i class="fab fa-whatsapp mr-2"></i> Solicitar Cotización
+            </button>
         </div>
     </div>
 
-    <footer class="mt-10 py-6 text-center text-white bg-rederar-blue rounded-xl max-w-7xl mx-auto shadow-inner border border-blue-600">
-        <div class="flex justify-center items-center mb-2">
-            <img src="https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg" alt="Logo de REDERAR" class="h-16 object-contain rounded-full">
-        </div>
-        <p class="text-sm text-gray-300">&copy; 2024 REDERAR. Todos los derechos reservados.</p>
-    </footer>
-
+    <!-- Custom Alert Modal -->
     <div id="custom-alert-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
             <h3 class="text-lg font-bold text-gray-800 mb-4">Aviso</h3>
@@ -229,393 +315,603 @@
         </div>
     </div>
 
+    <footer class="mt-10 py-6 text-center text-white bg-rederar-blue rounded-xl max-w-7xl mx-auto shadow-inner border border-blue-600">
+        <div class="flex justify-center items-center mb-2">
+            <!-- Logo de REDERAR en el pie de página -->
+            <img src="https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg" alt="Logo de REDERAR" class="h-16 object-contain rounded-full">
+        </div>
+        <p class="text-sm text-gray-300">&copy; 2024 REDERAR. Todos los derechos reservados.</p>
+    </footer>
+
     <script>
-        // --- PWA SETUP ---
-        const manifestData = { "name": "REDERAR - Simulador Solar", "short_name": "REDERAR Solar", "description": "Herramienta para dimensionar sistemas de Termotanques Solares.", "start_url": "./index.html", "display": "standalone", "background_color": "#002244", "theme_color": "#0056B3", "icons": [ { "src": "https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg", "sizes": "192x192", "type": "image/jpeg" }, { "src": "https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg", "sizes": "512x512", "type": "image/jpeg" } ] };
-        const serviceWorkerCode = `const CACHE_NAME = 'rederar-solar-cache-v1'; const urlsToCache = [ '/', '/index.html', 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css', 'https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg' ]; self.addEventListener('install', event => { event.waitUntil( caches.open(CACHE_NAME).then(cache => { console.log('Cache opened'); return cache.addAll(urlsToCache); }) ); }); self.addEventListener('fetch', event => { event.respondWith( caches.match(event.request).then(response => { if (response) { return response; } return fetch(event.request); }) ); });`;
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
-                const manifestUrl = URL.createObjectURL(manifestBlob);
-                const manifestLink = document.createElement('link');
-                manifestLink.rel = 'manifest';
-                manifestLink.href = manifestUrl;
-                document.head.appendChild(manifestLink);
-                const workerBlob = new Blob([serviceWorkerCode], { type: 'application/javascript' });
-                const workerUrl = URL.createObjectURL(workerBlob);
-                navigator.serviceWorker.register(workerUrl).then(registration => { console.log('Service Worker registrado con éxito:', registration.scope); }).catch(error => { console.log('Fallo el registro de Service Worker:', error); });
-            });
-        }
-        // --- END PWA SETUP ---
+        // --- CÓDIGO JS RECONSTRUIDO Y COMPLETADO CON LISTA DE LOCALIDADES AMPLIADA ---
 
-        // Data for provinces
-        const provinceData = {
-            'buenos-aires': { name: 'Buenos Aires', solarRadiation: 3.9, consumptionFactor: 40 },
-            'cordoba': { name: 'Córdoba', solarRadiation: 4.8, consumptionFactor: 38 },
-            'santa-fe': { name: 'Santa Fe', solarRadiation: 4.5, consumptionFactor: 39 },
-            'mendoza': { name: 'Mendoza', solarRadiation: 5.5, consumptionFactor: 35 },
-            'tucuman': { name: 'Tucumán', solarRadiation: 4.2, consumptionFactor: 37 },
-            'entre-rios': { name: 'Entre Ríos', solarRadiation: 4.2, consumptionFactor: 40 },
-            'salta': { name: 'Salta', solarRadiation: 5.8, consumptionFactor: 36 },
-            'corrientes': { name: 'Corrientes', solarRadiation: 4.0, consumptionFactor: 41 },
-            'misiones': { name: 'Misiones', solarRadiation: 3.8, consumptionFactor: 42 },
-            'chaco': { name: 'Chaco', solarRadiation: 4.4, consumptionFactor: 39 },
-            'santiago-del-estero': { name: 'Santiago del Estero', solarRadiation: 5.0, consumptionFactor: 36 },
-            'san-juan': { name: 'San Juan', solarRadiation: 6.0, consumptionFactor: 34 },
-            'san-luis': { name: 'San Luis', solarRadiation: 5.2, consumptionFactor: 38 },
-            'catamarca': { name: 'Catamarca', solarRadiation: 5.6, consumptionFactor: 35 },
-            'la-rioja': { name: 'La Rioja', solarRadiation: 5.9, consumptionFactor: 34 },
-            'jujuy': { name: 'Jujuy', solarRadiation: 5.1, consumptionFactor: 36 },
-            'la-pampa': { name: 'La Pampa', solarRadiation: 4.8, consumptionFactor: 37 },
-            'neuquen': { name: 'Neuquén', solarRadiation: 4.5, consumptionFactor: 45 },
-            'rio-negro': { name: 'Río Negro', solarRadiation: 4.6, consumptionFactor: 44 },
-            'chubut': { name: 'Chubut', solarRadiation: 4.0, consumptionFactor: 43 },
-            'santa-cruz': { name: 'Santa Cruz', solarRadiation: 3.5, consumptionFactor: 48 },
-            'tierra-del-fuego': { name: 'Tierra del Fuego', solarRadiation: 2.5, consumptionFactor: 50 },
-            'formosa': { name: 'Formosa', solarRadiation: 4.1, consumptionFactor: 40 }
+        // Diccionario de provincias y sus Horas Solares Pico (HSP)
+        // Se ha ampliado la lista de localidades para una mayor funcionalidad
+        const d1 = {
+            'buenos-aires': {
+                name: 'Buenos Aires',
+                hsp: 4.5,
+                localidades: ['La Plata', 'Mar del Plata', 'Bahía Blanca', 'Tandil', 'Zárate', 'San Nicolás', 'Junín', 'Olavarría', 'Pergamino', 'Campana', 'Ezeiza', 'Lomas de Zamora', 'Quilmes', 'Morón', 'La Matanza', 'Adrogué', 'Avellaneda', 'Banfield', 'Berazategui', 'Burzaco', 'Caseros', 'Castelar', 'Chascomús', 'Dolores', 'Ensenada', 'Escobar', 'Florencio Varela', 'Haedo', 'Ituzaingó', 'Luján', 'Mercedes', 'Merlo', 'Monte Grande', 'Necochea', 'Pilar', 'Pinamar', 'Ramos Mejía', 'San Fernando', 'San Isidro', 'San Justo', 'San Miguel', 'San Vicente', 'Tigre', 'Vicente López', 'Villa Gesell']
+            },
+            'cordoba': {
+                name: 'Córdoba',
+                hsp: 4.9,
+                localidades: ['Córdoba Capital', 'Villa Carlos Paz', 'Río Cuarto', 'San Francisco', 'Villa María', 'Río Tercero', 'Jesús María', 'Alta Gracia', 'Cosquín', 'La Falda', 'Arroyito', 'Bell Ville', 'Cruz del Eje', 'Deán Funes', 'Laboulaye', 'Las Varillas', 'Marcos Juárez', 'Mina Clavero', 'Morrison', 'Oncativo', 'Salsipuedes', 'San Basilio', 'Unquillo', 'Vicuña Mackenna']
+            },
+            'santa-fe': {
+                name: 'Santa Fe',
+                hsp: 4.7,
+                localidades: ['Santa Fe Capital', 'Rosario', 'Reconquista', 'Venado Tuerto', 'Rafaela', 'Esperanza', 'Santo Tomé', 'San Lorenzo', 'Gálvez', 'Casilda', 'Coronda', 'Funes', 'Granadero Baigorria', 'Helvecia', 'Oliveros', 'Pérez', 'Roldán', 'Rufino', 'San Justo', 'Sunchales', 'Villa Constitución']
+            },
+            'mendoza': {
+                name: 'Mendoza',
+                hsp: 5.6,
+                localidades: ['Mendoza Capital', 'San Rafael', 'Malargüe', 'General Alvear', 'Tunuyán', 'Godoy Cruz', 'Luján de Cuyo', 'Maipú', 'San Martín', 'La Paz', 'Las Heras', 'Lavalle', 'Rivadavia', 'San Carlos', 'Santa Rosa', 'Tupungato', 'Uspallata']
+            },
+            'tucuman': {
+                name: 'Tucumán',
+                hsp: 5.1,
+                localidades: ['San Miguel de Tucumán', 'Yerba Buena', 'Concepción', 'Tafí Viejo', 'Alderetes', 'Famaillá', 'Aguilares', 'Monteros', 'Bella Vista', 'Burruyacú', 'Cachí', 'El Cadillal', 'Juan Bautista Alberdi', 'Las Talitas', 'Lules', 'Simoca', 'Trancas']
+            },
+            'entre-rios': {
+                name: 'Entre Ríos',
+                hsp: 4.8,
+                localidades: ['Paraná', 'Concordia', 'Gualeguaychú', 'Villaguay', 'La Paz', 'Victoria', 'Federación', 'Chajarí', 'Crespo', 'Colón', 'Concepción del Uruguay', 'Diamante', 'Federal', 'Gualeguay', 'Ibicuy', 'María Grande', 'Nogoyá', 'San Salvador', 'Viale']
+            },
+            'salta': {
+                name: 'Salta',
+                hsp: 5.5,
+                localidades: ['Salta Capital', 'Orán', 'Cafayate', 'Tartagal', 'Metán', 'Rosario de la Frontera', 'General Güemes', 'San Ramón de la Nueva Orán', 'Aguaray', 'El Galpón', 'Embarcación', 'General Mosconi', 'Joaquín V. González', 'Molinos', 'Rosario de Lerma', 'San Antonio de los Cobres']
+            },
+            'corrientes': {
+                name: 'Corrientes',
+                hsp: 4.6,
+                localidades: ['Corrientes Capital', 'Goya', 'Paso de los Libres', 'Mercedes', 'Curuzú Cuatiá', 'Santo Tomé', 'Empedrado', 'Bella Vista', 'Alvear', 'Esquina', 'Itá Ibaté', 'Ituzaingó', 'Monte Caseros', 'Saladas', 'San Roque', 'Sauce']
+            },
+            'misiones': {
+                name: 'Misiones',
+                hsp: 4.6,
+                localidades: ['Posadas', 'Iguazú', 'Oberá', 'Eldorado', 'Apóstoles', 'Puerto Rico', 'Leandro N. Alem', 'Jardín América', 'Aristóbulo del Valle', 'Candelaria', 'Capioví', 'Dos de Mayo', 'El Soberbio', 'Gobernador Roca', 'Montecarlo', 'San Vicente', 'Wanda']
+            },
+            'chaco': {
+                name: 'Chaco',
+                hsp: 4.9,
+                localidades: ['Resistencia', 'Sáenz Peña', 'Villa Ángela', 'Castelli', 'Charata', 'Quitilipi', 'Barranqueras', 'General San Martín', 'Pampa del Indio', 'Presidencia de la Plaza', 'Puerto Vilelas', 'San Bernardo', 'Tres Isletas', 'Villa Berthet']
+            },
+            'santiago-del-estero': {
+                name: 'Santiago del Estero',
+                hsp: 5.3,
+                localidades: ['Santiago del Estero Capital', 'La Banda', 'Termas de Río Hondo', 'Frías', 'Loreto', 'Fernández', 'Clodomira', 'Añatuya', 'Bandera', 'Campo Gallo', 'Colonia Dora', 'Las Termas', 'Quimilí']
+            },
+            'san-juan': {
+                name: 'San Juan',
+                hsp: 5.8,
+                localidades: ['San Juan Capital', 'Rivadavia', 'Caucete', 'Jáchal', 'Albardón', 'San Martín', 'Chimbas', 'Angaco', 'Calingasta', 'Iglesia', 'Pocito', 'Rawson', 'Ullum', 'Zonda']
+            },
+            'san-luis': {
+                name: 'San Luis',
+                hsp: 5.2,
+                localidades: ['San Luis Capital', 'Villa Mercedes', 'Merlo', 'La Punta', 'Santa Rosa del Conlara', 'Justo Daract', 'Buena Esperanza', 'Concarán', 'Cortaderas', 'Juana Koslay', 'Potrero de los Funes', 'Quines', 'San Francisco del Monte de Oro']
+            },
+            'catamarca': {
+                name: 'Catamarca',
+                hsp: 5.4,
+                localidades: ['San Fernando del Valle de Catamarca', 'Andalgalá', 'Tinogasta', 'Belén', 'Recreo', 'Fray Mamerto Esquiú', 'Santa María', 'Antofagasta de la Sierra', 'El Rodeo', 'Huillapima', 'Icaño', 'La Puerta', 'Las Juntas', 'Paclín']
+            },
+            'la-rioja': {
+                name: 'La Rioja',
+                hsp: 5.7,
+                localidades: ['La Rioja Capital', 'Chilecito', 'Arauco', 'Chamical', 'Chepes', 'Famatina', 'Aimogasta', 'Ambil', 'Anillaco', 'Guandacol', 'Los Sauces', 'Olta', 'Patquia']
+            },
+            'jujuy': {
+                name: 'Jujuy',
+                hsp: 5.6,
+                localidades: ['San Salvador de Jujuy', 'Palpalá', 'La Quiaca', 'Perico', 'Libertador General San Martín', 'Humahuaca', 'Tilcara', 'Abra Pampa', 'Fraile Pintado', 'San Pedro de Jujuy', 'Yala']
+            },
+            'la-pampa': {
+                name: 'La Pampa',
+                hsp: 5.1,
+                localidades: ['Santa Rosa', 'General Pico', 'Toay', 'Eduardo Castex', 'Victorica', '25 de Mayo', 'General Acha', 'Catriló', 'Cuchillo Có', 'Doblas', 'Guatraché', 'Intendente Alvear', 'Macachín', 'Realicó', 'Santa Isabel']
+            },
+            'neuquen': {
+                name: 'Neuquén',
+                hsp: 4.2,
+                localidades: ['Neuquén Capital', 'San Martín de los Andes', 'Villa La Angostura', 'Cutral Có', 'Plottier', 'Zapala', 'Centenario', 'Aluminé', 'Chos Malal', 'Junín de los Andes', 'Las Lajas', 'Loncopué', 'Picún Leufú', 'Senillosa', 'Villa Pehuenia']
+            },
+            'rio-negro': {
+                name: 'Río Negro',
+                hsp: 4.4,
+                localidades: ['Viedma', 'Bariloche', 'General Roca', 'Cipolletti', 'San Antonio Oeste', 'El Bolsón', 'Choele Choel', 'Allen', 'Catriel', 'Cinco Saltos', 'El Cuy', 'Ingeniero Jacobacci', 'Las Grutas', 'Maquinchao', 'Villa Regina']
+            },
+            'chubut': {
+                name: 'Chubut',
+                hsp: 4.3,
+                localidades: ['Rawson', 'Comodoro Rivadavia', 'Puerto Madryn', 'Trelew', 'Esquel', 'Sarmiento', 'Rada Tilly', 'El Hoyo', 'Epuyén', 'Gaiman', 'Lago Puelo', 'Pico Salamanca', 'Río Senguer', 'Tecka', 'Trevelin']
+            },
+            'santa-cruz': {
+                name: 'Santa Cruz',
+                hsp: 3.9,
+                localidades: ['Río Gallegos', 'Caleta Olivia', 'El Calafate', 'Pico Truncado', 'Las Heras', 'Puerto Deseado', 'Perito Moreno', 'Gobernador Gregores', 'Los Antiguos', 'Puerto San Julián', 'Puerto Santa Cruz', 'Río Turbio', '28 de Noviembre']
+            },
+            'tierra-del-fuego': {
+                name: 'Tierra del Fuego',
+                hsp: 3.5,
+                localidades: ['Ushuaia', 'Río Grande', 'Tolhuin']
+            },
+            'formosa': {
+                name: 'Formosa',
+                hsp: 4.8,
+                localidades: ['Formosa Capital', 'Clorinda', 'El Colorado', 'Pirané', 'Ingeniero Juárez', 'Laguna Blanca', 'Comandante Fontana', 'General Manuel Belgrano', 'Las Lomitas', 'Riacho He-Hé', 'San Francisco de Laishí', 'Villa Dos Trece']
+            }
         };
-
-        // Component Constants
-        const PANEL_WATT = 550; // Wattage of a standard panel
-        const PANEL_AREA = 2.4; // Area in square meters
-        const INVERTER_MODELS = [3000, 5000, 8000, 10000]; // Common inverter capacities in W
-        const BATTERY_AH = 200; // Ah of a standard battery
-        const BATTERY_VOLTAGE = 12; // V
-        const SYSTEM_VOLTAGE = 24; // V for off-grid system
-
-        // Thermal Constants
-        const TUBE_LITERS = 7.5;
-        const TUBE_PER_MODEL = [10, 15, 20, 25, 30];
-        const THERMAL_CAPACITY_LITERS = [100, 150, 200, 250, 300];
-        const dailyWaterConsumptionPerPerson = 40;
-
-        // Custom alert modal functions
-        function showAlert(message) {
-            document.getElementById('custom-alert-message').innerText = message;
+        const p1 = 550; // W - Potencia de un panel solar estándar
+        const i1 = 2; // kW - Potencia mínima de inversor
+        const i2 = [2, 3, 4, 5, 6, 8, 10]; // Tamaños de inversores comunes en kW
+        // Diccionario de artefactos comunes con valores por defecto
+        const a2 = {
+            'heladera': { name: 'Heladera', consumption: 100, hours: 24, quantity: 1 },
+            'televisor-led': { name: 'Televisor LED (42")', consumption: 80, hours: 4, quantity: 1 },
+            'luces-led': { name: 'Luces LED (10W)', consumption: 10, hours: 6, quantity: 5 },
+            'notebook': { name: 'Notebook', consumption: 50, hours: 8, quantity: 1 },
+            'microondas': { name: 'Microondas', consumption: 1200, hours: 0.25, quantity: 1 },
+            'bomba-agua': { name: 'Bomba de agua', consumption: 500, hours: 1, quantity: 1 },
+            'cargador-celular': { name: 'Cargador de celular', consumption: 10, hours: 3, quantity: 1 }
+        };
+        
+        // Muestra un modal de alerta personalizado
+        function sA(m) {
+            document.getElementById('custom-alert-message').innerText = m;
             document.getElementById('custom-alert-modal').classList.remove('hidden');
         }
+        
+        // Cierra el modal de alerta personalizado
         function closeAlert() {
             document.getElementById('custom-alert-modal').classList.add('hidden');
         }
 
+        // Lógica que se ejecuta al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
-            populateProvinces('provinceOnGrid');
-            populateProvinces('provinceOffGrid');
-            populateProvinces('provinceThermal');
-
-            const clientInputs = document.querySelectorAll('.client-input');
-            const pvInputs = document.querySelectorAll('.pv-input');
-            const thermalInputs = document.querySelectorAll('.thermal-input');
-            const artefactContainer = document.getElementById('artefactContainer');
-
-            clientInputs.forEach(input => input.addEventListener('input', checkAllInputs));
-            pvInputs.forEach(input => input.addEventListener('input', checkAllInputs));
-            thermalInputs.forEach(input => input.addEventListener('input', checkAllInputs));
-            artefactContainer.addEventListener('input', checkAllInputs);
-
-            checkAllInputs();
+            // Carga las provincias en los selectores
+            p1_1('clientProvince');
+            p1_1('provinceOnGrid');
+            p1_1('provinceOffGrid');
+            // Carga los artefactos predefinidos
+            p2_1();
+            // Agrega event listeners a los campos de cliente para habilitar/deshabilitar botones
+            // El selector de provincia del cliente ahora tiene su propio listener para cargar localidades
+            document.getElementById('clientProvince').addEventListener('change', populateLocalities);
+            const e = document.querySelectorAll('.client-input');
+            e.forEach(i => {
+                i.addEventListener('input', c4);
+            });
+            // La validación inicial se hace al cargar la página
+            c4();
         });
 
-        function populateProvinces(selectId) {
-            const provinceSelect = document.getElementById(selectId);
-            if (!provinceSelect) return;
-            provinceSelect.innerHTML = '<option value="">Selecciona una provincia</option>';
-            for (const key in provinceData) {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = provinceData[key].name;
-                provinceSelect.appendChild(option);
+        // Habilita o deshabilita los botones de cálculo si los datos del cliente están completos
+        function c4() {
+            const n = document.getElementById('clientName').value.trim();
+            const t = document.getElementById('clientPhone').value.trim();
+            const p = document.getElementById('clientProvince').value.trim();
+            const l = document.getElementById('clientLocality').value.trim();
+            const c = n !== '' && t !== '' && p !== '' && l !== '';
+            const b1 = document.getElementById('calculateOnGridBtn');
+            const b2 = document.getElementById('calculateOffGridBtn');
+            const b3 = document.getElementById('calculateThermotankBtn'); // Nuevo botón
+            if (c) {
+                b1.disabled = false;
+                b1.classList.remove('disabled-button');
+                b2.disabled = false;
+                b2.classList.remove('disabled-button');
+                b3.disabled = false;
+                b3.classList.remove('disabled-button');
+            } else {
+                b1.disabled = true;
+                b1.classList.add('disabled-button');
+                b2.disabled = true;
+                b2.classList.add('disabled-button');
+                b3.disabled = true;
+                b3.classList.add('disabled-button');
             }
-        }
-
-        function checkAllInputs() {
-            const clientName = document.getElementById('clientName').value.trim();
-            const clientPhone = document.getElementById('clientPhone').value.trim();
-            const clientAddress = document.getElementById('clientAddress').value.trim();
-            const isClientDataComplete = clientName !== '' && clientPhone !== '' && clientAddress !== '';
-
-            // Check On-Grid
-            const annualConsumption = document.getElementById('annualConsumption').value.trim();
-            const provinceOnGrid = document.getElementById('provinceOnGrid').value;
-            const isOnGridDataComplete = annualConsumption !== '' && parseInt(annualConsumption) > 0 && provinceOnGrid !== '';
-            const calculateOnGridBtn = document.getElementById('calculateOnGridBtn');
-            calculateOnGridBtn.disabled = !(isClientDataComplete && isOnGridDataComplete);
-            calculateOnGridBtn.classList.toggle('disabled-button', !(isClientDataComplete && isOnGridDataComplete));
-
-            // Check Off-Grid
-            const artefactWatts = Array.from(document.querySelectorAll('.artefact-watts')).map(input => input.value.trim());
-            const artefactHours = Array.from(document.querySelectorAll('.artefact-hours')).map(input => input.value.trim());
-            const provinceOffGrid = document.getElementById('provinceOffGrid').value;
-            const isOffGridDataComplete = artefactWatts.every(val => val !== '' && parseInt(val) > 0) && artefactHours.every(val => val !== '' && parseInt(val) > 0) && provinceOffGrid !== '';
-            const calculateOffGridBtn = document.getElementById('calculateOffGridBtn');
-            calculateOffGridBtn.disabled = !(isClientDataComplete && isOffGridDataComplete);
-            calculateOffGridBtn.classList.toggle('disabled-button', !(isClientDataComplete && isOffGridDataComplete));
-
-            // Check Thermal
-            const numPeople = document.getElementById('numPeople').value.trim();
-            const provinceThermal = document.getElementById('provinceThermal').value;
-            const isThermalDataComplete = numPeople !== '' && parseInt(numPeople) > 0 && provinceThermal !== '';
-            const calculateThermalBtn = document.getElementById('calculateThermalBtn');
-            calculateThermalBtn.disabled = !(isClientDataComplete && isThermalDataComplete);
-            calculateThermalBtn.classList.toggle('disabled-button', !(isClientDataComplete && isThermalDataComplete));
         }
         
-        // --- ON-GRID FUNCTIONS ---
-        function calculateOnGridSystem() {
-            const annualConsumption = parseFloat(document.getElementById('annualConsumption').value);
-            const provinceKey = document.getElementById('provinceOnGrid').value;
-            const solarRadiation = provinceData[provinceKey].solarRadiation;
-
-            const resultsDiv = document.getElementById('onGridResults');
-            const errorMessage = document.getElementById('onGridErrorMessage');
-            const successContent = document.getElementById('onGridSuccessContent');
-            
-            if (isNaN(annualConsumption) || annualConsumption <= 0 || !provinceKey) {
-                resultsDiv.classList.remove('hidden');
-                errorMessage.innerText = 'Por favor, ingresa un consumo anual válido y selecciona una provincia.';
-                successContent.classList.add('hidden');
-                return false;
+        // Llena los selectores de provincia
+        function p1_1(s) {
+            const p = document.getElementById(s);
+            if (!p) return;
+            p.innerHTML = '<option value="">Selecciona una provincia</option>';
+            for (const k in d1) {
+                const o = document.createElement('option');
+                o.value = k;
+                o.textContent = d1[k].name;
+                p.appendChild(o);
             }
-
-            errorMessage.innerText = '';
-            successContent.classList.remove('hidden');
-            resultsDiv.classList.remove('hidden');
-
-            const dailyConsumption = annualConsumption / 365;
-            const dailyEnergyRequired = dailyConsumption * 1.25;
-            const pvArrayPower = (dailyEnergyRequired / solarRadiation);
-            const numPanels = Math.ceil(pvArrayPower * 1000 / PANEL_WATT);
-            const totalPanelArea = numPanels * PANEL_AREA;
-            
-            let inverterPower = pvArrayPower * 1000 * 1.2;
-            let inverterModel = INVERTER_MODELS.find(model => model >= inverterPower);
-            if (!inverterModel) {
-                inverterModel = Math.max(...INVERTER_MODELS);
-            }
-
-            successContent.innerHTML = `
-                <p id="onGridPanelResult" class="text-rederar-blue font-semibold">Cantidad de Paneles Solares: ${numPanels} unidades de ${PANEL_WATT}Wp</p>
-                <p id="onGridInverterResult" class="text-rederar-blue font-semibold">Potencia del Inversor: ${inverterModel}W</p>
-                <p class="text-gray-600 italic mt-4">**Importante:** Esta es una estimación inicial. Se recomienda una evaluación en sitio para un diseño final. El inversor debe ser compatible con la red local y con el modelo de paneles.</p>
-            `;
-            return true;
         }
 
-        function sendOnGridQuoteRequest() {
-            const clientName = document.getElementById('clientName').value.trim();
-            const clientPhone = document.getElementById('clientPhone').value.trim();
-            const clientAddress = document.getElementById('clientAddress').value.trim();
-            if (!clientName || !clientPhone || !clientAddress) {
-                showAlert('Por favor, completa los datos del cliente antes de solicitar una cotización.');
+        // NUEVA FUNCIÓN: Llena el selector de localidades basado en la provincia seleccionada
+        function populateLocalities() {
+            const provinceSelect = document.getElementById('clientProvince');
+            const localitySelect = document.getElementById('clientLocality');
+            const selectedProvince = provinceSelect.value;
+            
+            // Limpia las opciones existentes
+            localitySelect.innerHTML = '';
+
+            if (selectedProvince === '') {
+                localitySelect.disabled = true;
+                localitySelect.innerHTML = '<option value="">Selecciona una provincia primero</option>';
+            } else {
+                localitySelect.disabled = false;
+                const localities = d1[selectedProvince].localidades.sort(); // Ordena las localidades alfabéticamente
+                localitySelect.innerHTML = '<option value="">Selecciona una localidad</option>';
+                localities.forEach(locality => {
+                    const option = document.createElement('option');
+                    option.value = locality;
+                    option.textContent = locality;
+                    localitySelect.appendChild(option);
+                });
+            }
+            // Realiza la validación de los campos del cliente después de actualizar las localidades
+            c4();
+        }
+
+        // Llena el selector de artefactos predefinidos
+        function p2_1() {
+            const p = document.getElementById('predefinedAppliances');
+            if (!p) return;
+            for (const k in a2) {
+                const o = document.createElement('option');
+                o.value = k;
+                o.textContent = a2[k].name;
+                p.appendChild(o);
+            }
+        }
+
+        // Carga los valores de un artefacto predefinido en los inputs
+        function s3_appliance(e) {
+            const a = e.target.value;
+            if (!a) {
+                document.getElementById('applianceName').value = '';
+                document.getElementById('applianceQuantity').value = '';
+                document.getElementById('applianceConsumption').value = '';
+                document.getElementById('applianceHours').value = '';
                 return;
             }
-            if (!calculateOnGridSystem()) return;
-
-            const annualConsumption = document.getElementById('annualConsumption').value;
-            const selectedProvinceName = document.getElementById('provinceOnGrid').options[document.getElementById('provinceOnGrid').selectedIndex].text;
-            const panelResult = document.getElementById('onGridPanelResult').innerText;
-            const inverterResult = document.getElementById('onGridInverterResult').innerText;
-
-            const message = `*SOLICITUD DE COTIZACIÓN ON-GRID*\n\n` +
-                            `*Datos del Cliente:*\n` +
-                            `Nombre: ${clientName}\n` +
-                            `Teléfono: ${clientPhone}\n` +
-                            `Dirección: ${clientAddress}\n` +
-                            `Provincia: ${selectedProvinceName}\n\n` +
-                            `*Dimensionamiento Inicial:*\n` +
-                            `Consumo Anual: ${annualConsumption} kWh\n` +
-                            `${panelResult}\n` +
-                            `${inverterResult}\n`;
-            
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://api.whatsapp.com/send?phone=+543434802264&text=${encodedMessage}`;
-            window.open(whatsappUrl, '_blank');
-        }
-
-        // --- OFF-GRID FUNCTIONS ---
-        function addArtefactInput() {
-            const container = document.getElementById('artefactContainer');
-            const newArtefactHtml = `
-                <div class="flex gap-2">
-                    <input type="text" placeholder="Artefacto (ej. Heladera)" class="artefact-name w-full rounded-md border-gray-300 shadow-sm p-2 border">
-                    <input type="number" placeholder="Potencia (W)" class="artefact-watts w-full rounded-md border-gray-300 shadow-sm p-2 border" min="1">
-                    <input type="number" placeholder="Horas/día" class="artefact-hours w-full rounded-md border-gray-300 shadow-sm p-2 border" min="1">
-                    <button onclick="removeArtefact(this)" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full h-10 w-10 flex items-center justify-center">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', newArtefactHtml);
-            checkAllInputs();
-        }
-
-        function removeArtefact(button) {
-            button.closest('.flex').remove();
-            checkAllInputs();
-        }
-
-        function calculateOffGridSystem() {
-            const artefactWatts = Array.from(document.querySelectorAll('.artefact-watts'));
-            const artefactHours = Array.from(document.querySelectorAll('.artefact-hours'));
-            const provinceKey = document.getElementById('provinceOffGrid').value;
-
-            const resultsDiv = document.getElementById('offGridResults');
-            const errorMessage = document.getElementById('offGridErrorMessage');
-            const successContent = document.getElementById('offGridSuccessContent');
-
-            let totalDailyWh = 0;
-            let totalWatts = 0;
-            let isValid = true;
-
-            for (let i = 0; i < artefactWatts.length; i++) {
-                const watts = parseFloat(artefactWatts[i].value);
-                const hours = parseFloat(artefactHours[i].value);
-                if (isNaN(watts) || isNaN(hours) || watts <= 0 || hours <= 0) {
-                    isValid = false;
-                    break;
-                }
-                totalDailyWh += watts * hours;
-                totalWatts += watts;
+            const o = a2[a];
+            if (o) {
+                document.getElementById('applianceName').value = o.name;
+                document.getElementById('applianceQuantity').value = o.quantity;
+                document.getElementById('applianceConsumption').value = o.consumption;
+                document.getElementById('applianceHours').value = o.hours;
             }
-            if (!isValid || !provinceKey) {
-                resultsDiv.classList.remove('hidden');
-                errorMessage.innerText = 'Por favor, ingresa artefactos válidos (Potencia y Horas) y selecciona una provincia.';
-                successContent.classList.add('hidden');
+        }
+
+        // Calcula el dimensionamiento para un sistema On-Grid
+        function c1() {
+            const k = parseFloat(document.getElementById('annualKwh').value);
+            const p = document.getElementById('provinceOnGrid').value;
+            const r = document.getElementById('onGridResults');
+            const m = document.getElementById('onGridErrorMessage');
+            const c = document.getElementById('onGridSuccessContent');
+            if (isNaN(k) || k <= 0 || !p) {
+                r.classList.remove('hidden');
+                m.innerText = 'Por favor, ingresa un consumo anual válido y selecciona una provincia.';
+                c.classList.add('hidden');
                 return false;
             }
-
-            errorMessage.innerText = '';
-            successContent.classList.remove('hidden');
-            resultsDiv.classList.remove('hidden');
-
-            const solarRadiation = provinceData[provinceKey].solarRadiation;
-            const requiredKwh = totalDailyWh / 1000 * 1.2;
-            const pvArrayPowerKw = requiredKwh / solarRadiation;
-            const numPanels = Math.ceil(pvArrayPowerKw * 1000 / PANEL_WATT);
-            const inverterModel = INVERTER_MODELS.find(model => model >= totalWatts);
-            
-            const batteryCapacityWh = totalDailyWh * 1.5 * 2; // 1.5 autonomy days, x2 for 50% DOD
-            const batteryAhTotal = batteryCapacityWh / SYSTEM_VOLTAGE;
-            const numBatteries = Math.ceil(batteryAhTotal / BATTERY_AH);
-
-            successContent.innerHTML = `
-                <p id="offGridPanelResult" class="text-rederar-blue font-semibold">Cantidad de Paneles Solares: ${numPanels} unidades de ${PANEL_WATT}Wp</p>
-                <p id="offGridInverterResult" class="text-rederar-blue font-semibold">Potencia del Inversor: ${inverterModel ? inverterModel + 'W' : 'A definir'}</p>
-                <p id="offGridBatteryResult" class="text-rederar-blue font-semibold">Cantidad de Baterías: ${numBatteries} unidades de ${BATTERY_AH}Ah</p>
-                <p class="text-gray-600 italic mt-4">**Importante:** Esta es una estimación inicial. Se requiere una evaluación detallada para el diseño final. Los valores de potencia y baterías son aproximados.</p>
-            `;
-            return true;
-        }
-
-        function sendOffGridQuoteRequest() {
-            const clientName = document.getElementById('clientName').value.trim();
-            const clientPhone = document.getElementById('clientPhone').value.trim();
-            const clientAddress = document.getElementById('clientAddress').value.trim();
-            if (!clientName || !clientPhone || !clientAddress) {
-                showAlert('Por favor, completa los datos del cliente antes de solicitar una cotización.');
-                return;
+            m.innerText = '';
+            c.classList.remove('hidden');
+            r.classList.remove('hidden');
+            const s = 0.85; // Factor de corrección por pérdidas
+            const h = d1[p].hsp;
+            const i3 = (k / (h * 365 * s)); // Potencia del array FV necesaria en kWp
+            const n = Math.ceil((i3 * 1000) / p1); // Cantidad de paneles
+            const t = (n * p1 / 1000).toFixed(2); // Potencia total de paneles en kWp
+            let i4 = i2.find(z => z >= i3); // Busca el inversor más adecuado
+            if (!i4 || i4 < i1) {
+                i4 = i2.find(z => z >= i1);
             }
-            if (!calculateOffGridSystem()) return;
-
-            const artefactList = Array.from(document.querySelectorAll('#artefactContainer .flex')).map(div => {
-                const name = div.querySelector('.artefact-name').value;
-                const watts = div.querySelector('.artefact-watts').value;
-                const hours = div.querySelector('.artefact-hours').value;
-                return `- ${name} (${watts}W x ${hours}h)`;
-            }).join('\n');
-            const selectedProvinceName = document.getElementById('provinceOffGrid').options[document.getElementById('provinceOffGrid').selectedIndex].text;
-            const panelResult = document.getElementById('offGridPanelResult').innerText;
-            const inverterResult = document.getElementById('offGridInverterResult').innerText;
-            const batteryResult = document.getElementById('offGridBatteryResult').innerText;
-
-            const message = `*SOLICITUD DE COTIZACIÓN OFF-GRID*\n\n` +
-                            `*Datos del Cliente:*\n` +
-                            `Nombre: ${clientName}\n` +
-                            `Teléfono: ${clientPhone}\n` +
-                            `Dirección: ${clientAddress}\n` +
-                            `Provincia: ${selectedProvinceName}\n\n` +
-                            `*Artefactos y Consumo:*\n` +
-                            `${artefactList}\n\n` +
-                            `*Dimensionamiento Inicial:*\n` +
-                            `${panelResult}\n` +
-                            `${inverterResult}\n` +
-                            `${batteryResult}\n`;
-
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://api.whatsapp.com/send?phone=+543434802264&text=${encodedMessage}`;
-            window.open(whatsappUrl, '_blank');
-        }
-
-        // --- THERMAL FUNCTIONS ---
-        function calculateThermalSystem() {
-            const numPeople = parseInt(document.getElementById('numPeople').value);
-            const selectedProvinceKey = document.getElementById('provinceThermal').value;
-            
-            const resultsDiv = document.getElementById('thermalResults');
-            const errorMessage = document.getElementById('thermalErrorMessage');
-            const successContent = document.getElementById('thermalSuccessContent');
-
-            if (isNaN(numPeople) || numPeople <= 0 || !selectedProvinceKey) {
-                resultsDiv.classList.remove('hidden');
-                errorMessage.innerText = 'Por favor, ingresa un número de personas válido y selecciona una provincia.';
-                successContent.classList.add('hidden');
-                return false;
-            }
-
-            errorMessage.innerText = '';
-            successContent.classList.remove('hidden');
-            resultsDiv.classList.remove('hidden');
-            
-            const requiredLiters = numPeople * dailyWaterConsumptionPerPerson;
-            let tankCapacity = THERMAL_CAPACITY_LITERS.find(capacity => capacity >= requiredLiters);
-            if (!tankCapacity) {
-                tankCapacity = Math.max(...THERMAL_CAPACITY_LITERS);
-            }
-
-            let numTubes = Math.ceil(tankCapacity / TUBE_LITERS);
-            let commercialTubes = TUBE_PER_MODEL.find(tubes => tubes >= numTubes);
-            if (!commercialTubes) {
-                commercialTubes = Math.max(...TUBE_PER_MODEL);
-            }
-
-            successContent.innerHTML = `
-                <p id="thermalCapacityResult" class="text-rederar-blue font-semibold">Capacidad del termotanque solar: ${tankCapacity} litros</p>
-                <p id="thermalTubesResult" class="text-rederar-blue font-semibold">Cantidad de tubos evacuados: ${commercialTubes} tubos</p>
+            const g = t * h * 365 * s;
+            c.innerHTML = `
+                <p id="onGridPanelResult" class="text-rederar-blue font-semibold">Cantidad de paneles solares (550Wp): ${n} (Potencia total: ${t} kWp)</p>
+                <p id="onGridInverterResult" class="text-rederar-blue font-semibold">Tamaño del inversor On-Grid: ${i4} kW</p>
+                <p id="onGridGenerationResult" class="text-rederar-blue font-semibold">Este sistema podría generar hasta ${g.toFixed(0)} kWh anualmente, cubriendo tu consumo actual.</p>
                 <p class="text-gray-600 italic mt-4">**Importante:** Esta es una estimación inicial. Los valores pueden variar según las condiciones reales y el diseño final del sistema.</p>
             `;
             return true;
         }
-        
-        function sendThermalQuoteRequest() {
-            const clientName = document.getElementById('clientName').value.trim();
-            const clientPhone = document.getElementById('clientPhone').value.trim();
-            const clientAddress = document.getElementById('clientAddress').value.trim();
 
-            if (!clientName || !clientPhone || !clientAddress) {
-                showAlert('Por favor, completa los datos del cliente antes de solicitar una cotización.');
+        // Genera el enlace de WhatsApp para el sistema On-Grid
+        function s1() {
+            const n = document.getElementById('clientName').value.trim();
+            const t = document.getElementById('clientPhone').value.trim();
+            const p = document.getElementById('clientProvince').options[document.getElementById('clientProvince').selectedIndex].text;
+            const l = document.getElementById('clientLocality').options[document.getElementById('clientLocality').selectedIndex].text;
+            if (!n || !t || !p || !l) {
+                sA('Por favor, completa los datos del cliente antes de solicitar una cotización.');
                 return;
             }
-            if (!calculateThermalSystem()) return;
+            if (!c1()) {
+                return;
+            }
+            const k = document.getElementById('annualKwh').value;
+            const pr_calc = document.getElementById('provinceOnGrid').options[document.getElementById('provinceOnGrid').selectedIndex].text;
+            const pr = document.getElementById('onGridPanelResult').innerText;
+            const ir = document.getElementById('onGridInverterResult').innerText;
+            const gr = document.getElementById('onGridGenerationResult').innerText;
+            const m = `*SOLICITUD DE COTIZACIÓN ON-GRID*\n\n` +
+                `*Datos del Cliente:*\n` +
+                `Nombre: ${n}\n` +
+                `Teléfono: ${t}\n` +
+                `Provincia: ${p}\n` +
+                `Localidad: ${l}\n\n` +
+                `*Dimensionamiento Inicial:*\n` +
+                `Consumo anual: ${k} kWh\n` +
+                `Provincia para cálculo: ${pr_calc}\n` +
+                `${pr}\n` +
+                `${ir}\n` +
+                `${gr}\n`;
+            const em = encodeURIComponent(m);
+            const w = `https://api.whatsapp.com/send?phone=+543434802264&text=${em}`;
+            window.open(w, '_blank');
+        }
+        
+        // Calcula el dimensionamiento para un sistema Off-Grid
+        function c2() {
+            const t = document.getElementById('totalDailyConsumption');
+            const d = parseFloat(t.innerText.replace(' kWh', ''));
+            const a = parseFloat(document.getElementById('autonomyDays').value);
+            const p = document.getElementById('provinceOffGrid').value;
+            const r = document.getElementById('offGridResults');
+            const m = document.getElementById('offGridErrorMessage');
+            const c = document.getElementById('offGridSuccessContent');
+            if (isNaN(d) || d <= 0 || isNaN(a) || a <= 0 || !p) {
+                r.classList.remove('hidden');
+                m.innerText = 'Por favor, agrega al menos un artefacto y completa todos los campos con valores válidos.';
+                c.classList.add('hidden');
+                return false;
+            }
+            m.innerText = '';
+            c.classList.remove('hidden');
+            r.classList.remove('hidden');
+            const s = 0.8; // Eficiencia del inversor y del banco de baterías
+            const b = 0.85; // Factor de corrección para el banco de baterías
+            const h = d1[p].hsp;
+            const bz = ((d * a) / b).toFixed(2); // Capacidad del banco de baterías en kWh
+            const ps = ((d / (h * s)) * 1.2); // Factor de sobredimensionamiento para días nublados
+            const np = Math.ceil((ps * 1000) / p1); // Cantidad de paneles
+            const tp = (np * p1 / 1000).toFixed(2); // Potencia total de paneles en kWp
+            let i3 = i2.find(z => z >= ps); // Busca el inversor más adecuado
+            if (!i3 || i3 < i1) {
+                i3 = i2.find(z => z >= i1);
+            }
+            c.innerHTML = `
+                <p id="offGridPanelResult" class="text-rederar-blue font-semibold">Cantidad de paneles solares (550Wp): ${np} (Potencia total: ${tp} kWp)</p>
+                <p id="offGridInverterResult" class="text-rederar-blue font-semibold">Tamaño del inversor Off-Grid: ${i3} kW</p>
+                <p id="offGridBatteryResult" class="text-rederar-blue font-semibold">Capacidad del banco de baterías: ${bz} kWh</p>
+                <p class="text-gray-600 italic mt-4">**Importante:** Esta es una estimación inicial. Los valores pueden variar según las condiciones reales y el diseño final del sistema.</p>
+            `;
+            return true;
+        }
 
-            const numPeople = document.getElementById('numPeople').value;
-            const selectedProvinceName = document.getElementById('provinceThermal').options[document.getElementById('provinceThermal').selectedIndex].text;
-            const capacityResult = document.getElementById('thermalCapacityResult').innerText;
-            const tubesResult = document.getElementById('thermalTubesResult').innerText;
+        // Genera el enlace de WhatsApp para el sistema Off-Grid
+        function s2() {
+            const n = document.getElementById('clientName').value.trim();
+            const t = document.getElementById('clientPhone').value.trim();
+            const p = document.getElementById('clientProvince').options[document.getElementById('clientProvince').selectedIndex].text;
+            const l = document.getElementById('clientLocality').options[document.getElementById('clientLocality').selectedIndex].text;
+            if (!n || !t || !p || !l) {
+                sA('Por favor, completa los datos del cliente antes de solicitar una cotización.');
+                return;
+            }
+            if (!c2()) {
+                return;
+            }
+            const tdc = document.getElementById('totalDailyConsumption');
+            const dk = parseFloat(tdc.innerText.replace(' kWh', ''));
+            const a = document.getElementById('autonomyDays').value;
+            const pr_calc = document.getElementById('provinceOffGrid').options[document.getElementById('provinceOffGrid').selectedIndex].text;
+            const pr = document.getElementById('offGridPanelResult').innerText;
+            const ir = document.getElementById('offGridInverterResult').innerText;
+            const br = document.getElementById('offGridBatteryResult').innerText;
+            let al = '';
+            const tr = document.querySelectorAll('#artifactTableBody tr');
+            tr.forEach(r => {
+                const c = r.querySelectorAll('td');
+                const n = c[0].innerText;
+                const q = c[1].innerText;
+                const co = c[2].innerText;
+                const h = c[3].innerText;
+                const dc = c[4].innerText;
+                al += ` - ${q}x ${n} (${co}, ${h}hs/día) = ${dc}\n`;
+            });
+            if (al === '') {
+                al = 'No se han agregado artefactos.\n';
+            }
+            const m = `*SOLICITUD DE COTIZACIÓN OFF-GRID*\n\n` +
+                `*Datos del Cliente:*\n` +
+                `Nombre: ${n}\n` +
+                `Teléfono: ${t}\n` +
+                `Provincia: ${p}\n` +
+                `Localidad: ${l}\n\n` +
+                `*Artefactos a Suministrar:*\n` +
+                al +
+                `*Dimensionamiento Inicial:*\n` +
+                `Consumo diario total: ${dk.toFixed(2)} kWh\n` +
+                `Autonomía de baterías: ${a} días\n` +
+                `Provincia para cálculo: ${pr_calc}\n` +
+                `${pr}\n` +
+                `${ir}\n` +
+                `${br}\n`;
+            const em = encodeURIComponent(m);
+            const w = `https://api.whatsapp.com/send?phone=+543434802264&text=${em}`;
+            window.open(w, '_blank');
+        }
 
-            const message = `*SOLICITUD DE COTIZACIÓN TERMOTANQUE SOLAR*\n\n` +
-                            `*Datos del Cliente:*\n` +
-                            `Nombre: ${clientName}\n` +
-                            `Teléfono: ${clientPhone}\n` +
-                            `Dirección: ${clientAddress}\n` +
-                            `Provincia: ${selectedProvinceName}\n\n` +
-                            `*Dimensionamiento Inicial:*\n` +
-                            `Cantidad de personas: ${numPeople}\n` +
-                            `${capacityResult}\n` +
-                            `${tubesResult}\n`;
+        // Agrega un nuevo artefacto a la tabla Off-Grid y actualiza el consumo total
+        function a1() {
+            const n = document.getElementById('applianceName');
+            const q = document.getElementById('applianceQuantity');
+            const co = document.getElementById('applianceConsumption');
+            const h = document.getElementById('applianceHours');
+            const v_n = n.value.trim();
+            const v_q = parseFloat(q.value);
+            const v_co = parseFloat(co.value);
+            const v_h = parseFloat(h.value);
             
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://api.whatsapp.com/send?phone=+543434802264&text=${encodedMessage}`;
-            window.open(whatsappUrl, '_blank');
+            if (!v_n || isNaN(v_q) || v_q <= 0 || isNaN(v_co) || v_co <= 0 || isNaN(v_h) || v_h <= 0) {
+                sA('Por favor, completa todos los campos con valores válidos para agregar un artefacto.');
+                return;
+            }
+            
+            // Lógica para el consumo de la heladera, usando un factor de corrección de horas
+            let effective_h = v_h;
+            if (v_n.toLowerCase() === 'heladera' && v_h >= 20) {
+                 effective_h = 8;
+            }
+            
+            const daily_consumption_kwh = (v_q * v_co * effective_h / 1000);
+            
+            const tb = document.getElementById('artifactTableBody');
+            const nr = document.createElement('tr');
+            nr.classList.add('bg-white');
+            nr.innerHTML = `
+                <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">${v_n}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">${v_q}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">${v_co} W</td>
+                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">${v_h} hs/día</td>
+                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500" data-consumption="${daily_consumption_kwh.toFixed(2)}">${daily_consumption_kwh.toFixed(2)} kWh</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="removeArtifact(this)" class="remove-btn">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tb.appendChild(nr);
+            
+            // Limpia los inputs del formulario después de agregar
+            n.value = '';
+            q.value = '';
+            co.value = '';
+            h.value = '';
+            
+            // Actualiza el consumo total
+            updateTotalConsumption();
+        }
+
+        // Elimina un artefacto de la tabla y actualiza el consumo total
+        function removeArtifact(button) {
+            const row = button.closest('tr');
+            row.remove();
+            updateTotalConsumption();
+        }
+
+        // Calcula y actualiza el consumo diario total
+        function updateTotalConsumption() {
+            let total = 0;
+            const rows = document.querySelectorAll('#artifactTableBody tr');
+            rows.forEach(row => {
+                const consumptionCell = row.querySelector('[data-consumption]');
+                if (consumptionCell) {
+                    total += parseFloat(consumptionCell.dataset.consumption);
+                }
+            });
+            document.getElementById('totalDailyConsumption').innerText = total.toFixed(2) + ' kWh';
+        }
+
+        // --- NUEVAS FUNCIONES PARA EL TERMOTANQUE SOLAR ---
+
+        // Calcula el dimensionamiento para un termotanque solar
+        function c3() {
+            const p = parseFloat(document.getElementById('peopleCount').value);
+            const c = document.querySelector('input[name="childrenUnder10"]:checked').value;
+            const b = document.querySelector('input[name="pressurizerPump"]:checked').value;
+            const w = document.getElementById('waterType').value;
+
+            const r = document.getElementById('solarThermotankResults');
+            const m = document.getElementById('thermotankErrorMessage');
+            const c_c = document.getElementById('thermotankSuccessContent');
+
+            if (isNaN(p) || p <= 0) {
+                r.classList.remove('hidden');
+                m.innerText = 'Por favor, ingresa una cantidad de personas válida.';
+                c_c.classList.add('hidden');
+                return false;
+            }
+
+            m.innerText = '';
+            c_c.classList.remove('hidden');
+            r.classList.remove('hidden');
+
+            let tankSize = '';
+            if (p <= 2) {
+                tankSize = '150 litros';
+            } else if (p <= 4) {
+                tankSize = '200 litros';
+            } else {
+                tankSize = '250 litros o superior';
+            }
+
+            let recommendations = [];
+            recommendations.push(`El tamaño de termotanque solar recomendado es de **${tankSize}**.`);
+            
+            if (b === 'yes') {
+                recommendations.push(`Se recomienda un equipo **presurizado** debido al uso de una bomba presurizadora.`);
+            } else {
+                recommendations.push(`Se recomienda un equipo **no presurizado**.`);
+            }
+
+            if (c === 'yes') {
+                recommendations.push(`Para la seguridad de los menores, se sugiere la instalación de una **válvula termostática** para controlar la temperatura del agua.`);
+            }
+
+            if (w === 'salada') {
+                recommendations.push(`Dado que el agua es salada, se recomienda considerar la instalación de un **ablandador de agua** u otro sistema de tratamiento para prolongar la vida útil del equipo.`);
+            }
+
+            c_c.innerHTML = recommendations.map(rec => `<p class="text-gray-700">${rec}</p>`).join('');
+            return true;
+        }
+
+        // Genera el enlace de WhatsApp para el termotanque solar
+        function s3_thermotank() {
+            const n = document.getElementById('clientName').value.trim();
+            const t = document.getElementById('clientPhone').value.trim();
+            const p = document.getElementById('clientProvince').options[document.getElementById('clientProvince').selectedIndex].text;
+            const l = document.getElementById('clientLocality').options[document.getElementById('clientLocality').selectedIndex].text;
+            if (!n || !t || !p || !l) {
+                sA('Por favor, completa los datos del cliente antes de solicitar una cotización.');
+                return;
+            }
+
+            if (!c3()) {
+                return;
+            }
+
+            const pc = document.getElementById('peopleCount').value;
+            const c = document.querySelector('input[name="childrenUnder10"]:checked').value === 'yes' ? 'Sí' : 'No';
+            const b = document.querySelector('input[name="pressurizerPump"]:checked').value === 'yes' ? 'Sí' : 'No';
+            const w = document.getElementById('waterType').value;
+            const results = document.getElementById('thermotankSuccessContent').innerText;
+
+            const m = `*SOLICITUD DE COTIZACIÓN TERMOTANQUE SOLAR*\n\n` +
+                `*Datos del Cliente:*\n` +
+                `Nombre: ${n}\n` +
+                `Teléfono: ${t}\n` +
+                `Provincia: ${p}\n` +
+                `Localidad: ${l}\n\n` +
+                `*Información para Dimensionamiento:*\n` +
+                `Cantidad de personas: ${pc}\n` +
+                `Menores de 10 años: ${c}\n` +
+                `Bomba presurizadora: ${b}\n` +
+                `Tipo de agua: ${w}\n\n` +
+                `*Recomendaciones:*\n` +
+                `${results}`;
+                
+            const em = encodeURIComponent(m);
+            const w_link = `https://api.whatsapp.com/send?phone=+543434802264&text=${em}`;
+            window.open(w_link, '_blank');
         }
     </script>
 </body>
