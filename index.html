@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dimensionamiento de Sistemas Solares y Termotanques Solares REDERAR</title>
-    <!-- Favicon: El ícono en la pestaña del navegador -->
-    <link rel="icon" type="image/jpeg" href="https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg">
+    <!-- Favicon: El ícono en la pestaña del navegador, incrustado como SVG para mayor fiabilidad -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23FFC107'/%3E%3C/svg%3E" type="image/svg+xml">
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -48,8 +48,8 @@
     <div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden p-6 sm:p-10">
         <!-- Logo and Title -->
         <div class="flex flex-col items-center mb-8">
-            <!-- Logo principal de la página -->
-            <img src="https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg" alt="Logo de REDERAR" class="mb-4 h-24 object-contain rounded-full">
+            <!-- Logo actualizado con la URL proporcionada por el usuario -->
+            <img src="https://i.postimg.cc/VdWr0Vt7/LOGO-2024.jpg" alt="Logo de REDERAR" class="mb-4 h-24 object-contain rounded-full">
             <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 sm:text-4xl">
                 DIMENSIONAMIENTO INICIAL SISTEMAS SOLARES Y TERMOTANQUES SOLARES
             </h1>
@@ -317,8 +317,8 @@
 
     <footer class="mt-10 py-6 text-center text-white bg-rederar-blue rounded-xl max-w-7xl mx-auto shadow-inner border border-blue-600">
         <div class="flex justify-center items-center mb-2">
-            <!-- Logo de REDERAR en el pie de página -->
-            <img src="https://i.postimg.cc/Pv5PgCWs/LOGO-2024.jpg" alt="Logo de REDERAR" class="h-16 object-contain rounded-full">
+            <!-- Logo incrustado en el pie de página -->
+            <img src="https://i.postimg.cc/VdWr0Vt7/LOGO-2024.jpg" alt="Logo de REDERAR" class="h-16 w-16 object-contain rounded-full shadow-md">
         </div>
         <p class="text-sm text-gray-300">&copy; 2024 REDERAR. Todos los derechos reservados.</p>
     </footer>
@@ -659,39 +659,93 @@
         
         // Calcula el dimensionamiento para un sistema Off-Grid
         function c2() {
-            const t = document.getElementById('totalDailyConsumption');
-            const d = parseFloat(t.innerText.replace(' kWh', ''));
-            const a = parseFloat(document.getElementById('autonomyDays').value);
-            const p = document.getElementById('provinceOffGrid').value;
-            const r = document.getElementById('offGridResults');
-            const m = document.getElementById('offGridErrorMessage');
-            const c = document.getElementById('offGridSuccessContent');
-            if (isNaN(d) || d <= 0 || isNaN(a) || a <= 0 || !p) {
-                r.classList.remove('hidden');
-                m.innerText = 'Por favor, agrega al menos un artefacto y completa todos los campos con valores válidos.';
-                c.classList.add('hidden');
+            const autonomyDays = parseFloat(document.getElementById('autonomyDays').value);
+            const province = document.getElementById('provinceOffGrid').value;
+            const offGridResultsDiv = document.getElementById('offGridResults');
+            const errorMessageDiv = document.getElementById('offGridErrorMessage');
+            const successContentDiv = document.getElementById('offGridSuccessContent');
+            const totalDailyConsumptionStr = document.getElementById('totalDailyConsumption').innerText;
+            const totalDailyConsumptionKwh = parseFloat(totalDailyConsumptionStr.replace(' kWh', ''));
+            
+            if (isNaN(autonomyDays) || autonomyDays <= 0 || !province || isNaN(totalDailyConsumptionKwh) || totalDailyConsumptionKwh <= 0) {
+                offGridResultsDiv.classList.remove('hidden');
+                errorMessageDiv.innerText = 'Por favor, completa todos los campos con valores válidos y agrega artefactos para el consumo.';
+                successContentDiv.classList.add('hidden');
                 return false;
             }
-            m.innerText = '';
-            c.classList.remove('hidden');
-            r.classList.remove('hidden');
-            const s = 0.8; // Eficiencia del inversor y del banco de baterías
-            const b = 0.85; // Factor de corrección para el banco de baterías
-            const h = d1[p].hsp;
-            const bz = ((d * a) / b).toFixed(2); // Capacidad del banco de baterías en kWh
-            const ps = ((d / (h * s)) * 1.2); // Factor de sobredimensionamiento para días nublados
-            const np = Math.ceil((ps * 1000) / p1); // Cantidad de paneles
-            const tp = (np * p1 / 1000).toFixed(2); // Potencia total de paneles en kWp
-            let i3 = i2.find(z => z >= ps); // Busca el inversor más adecuado
-            if (!i3 || i3 < i1) {
-                i3 = i2.find(z => z >= i1);
+
+            // Ocultar mensaje de error y mostrar el de éxito
+            errorMessageDiv.innerText = '';
+            successContentDiv.classList.remove('hidden');
+            offGridResultsDiv.classList.remove('hidden');
+
+            // Definiciones de componentes y factores
+            const panelPower = 550; // Wp
+            const dod = 0.50; // Profundidad de descarga del 50%
+            const inverterEfficiency = 0.85; // Eficiencia del inversor (ej. 85%)
+            const hsp = d1[province].hsp; // Horas Solares Pico
+            const batteryVoltages = [12, 24, 48];
+            const batteryAhCapacities = [100, 150, 180];
+            let bestConfig = {
+                voltage: 0,
+                ah: 0,
+                numBatteries: Infinity
+            };
+
+            // 1. Cálculo de baterías para diferentes voltajes y capacidades
+            const totalEnergyNeededKwh = totalDailyConsumptionKwh * autonomyDays;
+
+            const batteryResults = batteryVoltages.flatMap(voltage => 
+                batteryAhCapacities.map(ah => {
+                    const requiredEnergyWh = totalEnergyNeededKwh * 1000;
+                    const totalEnergyWh = (voltage * ah);
+                    const numBatteries = Math.ceil(requiredEnergyWh / (totalEnergyWh * dod));
+                    
+                    if (numBatteries < bestConfig.numBatteries) {
+                        bestConfig = { voltage, ah, numBatteries };
+                    }
+                    
+                    return {
+                        voltage: voltage,
+                        ah: ah,
+                        numBatteries: numBatteries
+                    };
+                })
+            );
+
+            // 2. Cálculo de paneles
+            const requiredPvPowerKwp = (totalDailyConsumptionKwh / (hsp * inverterEfficiency)) * 1.2; // kWp, con factor de sobredimensionamiento
+            const numPanels = Math.ceil((requiredPvPowerKwp * 1000) / panelPower);
+            const totalPanelPowerKwp = (numPanels * panelPower / 1000).toFixed(2);
+            
+            // 3. Cálculo de inversor
+            let inverterSizeKw = i2.find(z => z >= (totalDailyConsumptionKwh * 1000 / 24) / 1000); // Se asume que el inversor debe soportar el consumo pico
+            if (!inverterSizeKw || inverterSizeKw < i1) {
+                inverterSizeKw = i2.find(z => z >= i1);
             }
-            c.innerHTML = `
-                <p id="offGridPanelResult" class="text-rederar-blue font-semibold">Cantidad de paneles solares (550Wp): ${np} (Potencia total: ${tp} kWp)</p>
-                <p id="offGridInverterResult" class="text-rederar-blue font-semibold">Tamaño del inversor Off-Grid: ${i3} kW</p>
-                <p id="offGridBatteryResult" class="text-rederar-blue font-semibold">Capacidad del banco de baterías: ${bz} kWh</p>
+            
+            // Construir el HTML de resultados
+            let batteryHtml = `
+                <p class="font-bold text-gray-800 mt-4 mb-2">Análisis de Baterías:</p>
+                <p class="text-gray-600 mb-2">Se ha seleccionado la configuración de ${bestConfig.voltage}V para optimizar la instalación.</p>
+                <div class="border border-blue-300 bg-blue-50 p-3 rounded-lg">
+                    <p id="offGridBatteryResult" class="text-rederar-blue font-bold">Recomendación: Sistema de ${bestConfig.voltage}V</p>
+                    <p class="text-rederar-blue font-semibold">Banco de baterías recomendado: ${bestConfig.numBatteries} baterías de ${bestConfig.ah}Ah, ${bestConfig.voltage}V</p>
+                </div>
+            `;
+            
+            successContentDiv.innerHTML = `
+                <p id="offGridPanelResult" class="text-rederar-blue font-semibold">Cantidad de paneles solares (550Wp): ${numPanels} (Potencia total: ${totalPanelPowerKwp} kWp)</p>
+                <p id="offGridInverterResult" class="text-rederar-blue font-semibold">Tamaño del inversor Off-Grid: ${inverterSizeKw} kW</p>
+                ${batteryHtml}
                 <p class="text-gray-600 italic mt-4">**Importante:** Esta es una estimación inicial. Los valores pueden variar según las condiciones reales y el diseño final del sistema.</p>
             `;
+            
+            // Almacenar la mejor configuración en un atributo de datos para su uso en la función de WhatsApp
+            offGridResultsDiv.dataset.bestVoltage = bestConfig.voltage;
+            offGridResultsDiv.dataset.bestAh = bestConfig.ah;
+            offGridResultsDiv.dataset.bestNumBatteries = bestConfig.numBatteries;
+            
             return true;
         }
 
@@ -712,9 +766,17 @@
             const dk = parseFloat(tdc.innerText.replace(' kWh', ''));
             const a = document.getElementById('autonomyDays').value;
             const pr_calc = document.getElementById('provinceOffGrid').options[document.getElementById('provinceOffGrid').selectedIndex].text;
+            const offGridResultsDiv = document.getElementById('offGridResults');
             const pr = document.getElementById('offGridPanelResult').innerText;
             const ir = document.getElementById('offGridInverterResult').innerText;
-            const br = document.getElementById('offGridBatteryResult').innerText;
+            
+            // Leer la mejor configuración de los atributos de datos
+            const bestVoltage = offGridResultsDiv.dataset.bestVoltage;
+            const bestAh = offGridResultsDiv.dataset.bestAh;
+            const bestNumBatteries = offGridResultsDiv.dataset.bestNumBatteries;
+
+            const br = `Banco de baterías recomendado: ${bestNumBatteries} baterías de ${bestAh}Ah, ${bestVoltage}V`;
+            
             let al = '';
             const tr = document.querySelectorAll('#artifactTableBody tr');
             tr.forEach(r => {
