@@ -884,55 +884,86 @@
 
         // --- NUEVAS FUNCIONES PARA EL TERMOTANQUE SOLAR ---
 
-        // Calcula el dimensionamiento para un termotanque solar
+        // Función de cálculo para el termotanque solar, según la lógica solicitada
         function c3() {
-            const p = parseFloat(document.getElementById('peopleCount').value);
-            const c = document.querySelector('input[name="childrenUnder10"]:checked').value;
-            const b = document.querySelector('input[name="pressurizerPump"]:checked').value;
-            const w = document.getElementById('waterType').value;
-
-            const r = document.getElementById('solarThermotankResults');
-            const m = document.getElementById('thermotankErrorMessage');
-            const c_c = document.getElementById('thermotankSuccessContent');
-
-            if (isNaN(p) || p <= 0) {
-                r.classList.remove('hidden');
-                m.innerText = 'Por favor, ingresa una cantidad de personas válida.';
-                c_c.classList.add('hidden');
+            const peopleCount = parseFloat(document.getElementById('peopleCount').value);
+            const childrenUnder10 = document.querySelector('input[name="childrenUnder10"]:checked').value;
+            const pressurizerPump = document.querySelector('input[name="pressurizerPump"]:checked').value;
+            const waterType = document.getElementById('waterType').value;
+        
+            const resultsDiv = document.getElementById('solarThermotankResults');
+            const errorMessageDiv = document.getElementById('thermotankErrorMessage');
+            const successContentDiv = document.getElementById('thermotankSuccessContent');
+        
+            if (isNaN(peopleCount) || peopleCount <= 0) {
+                resultsDiv.classList.remove('hidden');
+                errorMessageDiv.innerText = 'Por favor, ingresa una cantidad de personas válida.';
+                successContentDiv.classList.add('hidden');
                 return false;
             }
-
-            m.innerText = '';
-            c_c.classList.remove('hidden');
-            r.classList.remove('hidden');
-
-            let tankSize = '';
-            if (p <= 2) {
-                tankSize = '150 litros';
-            } else if (p <= 4) {
-                tankSize = '200 litros';
-            } else {
-                tankSize = '250 litros o superior';
+        
+            errorMessageDiv.innerText = '';
+            successContentDiv.classList.remove('hidden');
+            resultsDiv.classList.remove('hidden');
+        
+            // Estimar consumo de agua caliente: 50 litros por persona
+            const estimatedConsumption = peopleCount * 50;
+            const tankSizes = [150, 200, 250, 300];
+            let recommendation = { text: '', capacity: 0 };
+        
+            // Lógica de cálculo y recomendación de equipos
+            let foundCombination = false;
+            let bestCombination = { tanks: [], capacity: 0, overflow: Infinity };
+        
+            // Opción 1: Un solo tanque
+            for (const size of tankSizes) {
+                if (size >= estimatedConsumption) {
+                    if (size - estimatedConsumption < bestCombination.overflow) {
+                        bestCombination = { tanks: [size], capacity: size, overflow: size - estimatedConsumption };
+                    }
+                }
             }
-
-            let recommendations = [];
-            recommendations.push(`El tamaño de termotanque solar recomendado es de **${tankSize}**.`);
+        
+            // Opción 2: Combinación de dos tanques para cubrir la demanda con menor sobredimensionamiento
+            for (let i = 0; i < tankSizes.length; i++) {
+                for (let j = i; j < tankSizes.length; j++) {
+                    const capacity = tankSizes[i] + tankSizes[j];
+                    if (capacity >= estimatedConsumption) {
+                        const overflow = capacity - estimatedConsumption;
+                        if (overflow < bestCombination.overflow) {
+                            bestCombination = { tanks: [tankSizes[i], tankSizes[j]], capacity: capacity, overflow: overflow };
+                        }
+                    }
+                }
+            }
+        
+            let tankRecommendationString = '';
+            if (bestCombination.tanks.length === 1) {
+                tankRecommendationString = `un equipo de **${bestCombination.tanks[0]} litros**`;
+            } else if (bestCombination.tanks.length === 2) {
+                tankRecommendationString = `dos equipos: **uno de ${bestCombination.tanks[0]} litros y uno de ${bestCombination.tanks[1]} litros**`;
+            }
             
-            if (b === 'yes') {
+            // Construir el texto final de la recomendación
+            let recommendations = [];
+            recommendations.push(`El consumo diario estimado de agua caliente es de ${estimatedConsumption} litros.`);
+            recommendations.push(`Para cubrir esta demanda, se recomienda la instalación de ${tankRecommendationString}, con una capacidad total de ${bestCombination.capacity} litros.`);
+            
+            if (pressurizerPump === 'yes') {
                 recommendations.push(`Se recomienda un equipo **presurizado** debido al uso de una bomba presurizadora.`);
             } else {
                 recommendations.push(`Se recomienda un equipo **no presurizado**.`);
             }
-
-            if (c === 'yes') {
+        
+            if (childrenUnder10 === 'yes') {
                 recommendations.push(`Para la seguridad de los menores, se sugiere la instalación de una **válvula termostática** para controlar la temperatura del agua.`);
             }
-
-            if (w === 'salada') {
+        
+            if (waterType === 'salada') {
                 recommendations.push(`Dado que el agua es salada, se recomienda considerar la instalación de un **ablandador de agua** u otro sistema de tratamiento para prolongar la vida útil del equipo.`);
             }
-
-            c_c.innerHTML = recommendations.map(rec => `<p class="text-gray-700">${rec}</p>`).join('');
+        
+            successContentDiv.innerHTML = recommendations.map(rec => `<p class="text-gray-700">${rec}</p>`).join('');
             return true;
         }
 
@@ -955,7 +986,14 @@
             const c = document.querySelector('input[name="childrenUnder10"]:checked').value === 'yes' ? 'Sí' : 'No';
             const b = document.querySelector('input[name="pressurizerPump"]:checked').value === 'yes' ? 'Sí' : 'No';
             const w = document.getElementById('waterType').value;
-            const results = document.getElementById('thermotankSuccessContent').innerText;
+            
+            // Obtener el HTML con los resultados
+            const resultsHTML = document.getElementById('thermotankSuccessContent').innerHTML;
+
+            // Convertir el HTML de resultados a texto plano para el mensaje de WhatsApp
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = resultsHTML;
+            const resultsText = tempDiv.innerText;
 
             const m = `*SOLICITUD DE COTIZACIÓN TERMOTANQUE SOLAR*\n\n` +
                 `*Datos del Cliente:*\n` +
@@ -969,7 +1007,7 @@
                 `Bomba presurizadora: ${b}\n` +
                 `Tipo de agua: ${w}\n\n` +
                 `*Recomendaciones:*\n` +
-                `${results}`;
+                `${resultsText}`;
                 
             const em = encodeURIComponent(m);
             const w_link = `https://api.whatsapp.com/send?phone=+543434802264&text=${em}`;
@@ -978,3 +1016,4 @@
     </script>
 </body>
 </html>
+
