@@ -98,18 +98,12 @@
                     </div>
                     <h2 class="text-2xl font-bold text-rederar-blue">Sistema On-Grid</h2>
                 </div>
-                <p class="text-gray-600 mb-6">Calcula el tamaño del sistema solar conectado a la red. Ingresa tu consumo anual y la provincia para obtener la estimación.</p>
+                <p class="text-gray-600 mb-6">Calcula el tamaño del sistema solar conectado a la red. Ingresa tu consumo anual.</p>
 
                 <div class="space-y-4 mb-6">
                     <div>
                         <label for="annualKwh" class="block text-sm font-medium text-gray-700">Consumo anual (kWh)</label>
                         <input type="number" id="annualKwh" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border" placeholder="e.g., 3000">
-                    </div>
-                    <div>
-                        <label for="provinceOnGrid" class="block text-sm font-medium text-gray-700">Provincia (para cálculo)</label>
-                        <select id="provinceOnGrid" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-rederar-blue focus:ring-rederar-blue p-2 border">
-                            <option value="">Selecciona una provincia</option>
-                        </select>
                     </div>
                 </div>
 
@@ -140,7 +134,7 @@
                     </div>
                     <h2 class="text-2xl font-bold text-rederar-blue">Sistema Off-Grid</h2>
                 </div>
-                <p class="text-gray-600 mb-6">Calcula los componentes para un sistema aislado. Agrega tus artefactos y selecciona la provincia para obtener la estimación.</p>
+                <p class="text-gray-600 mb-6">Calcula los componentes para un sistema aislado. Agrega tus artefactos.</p>
                 
                 <div class="space-y-4 mb-6">
                     <!-- New: Predefined Appliance Selection -->
@@ -206,12 +200,6 @@
                     <div>
                         <label for="autonomyDays" class="block text-sm font-medium text-gray-700">Días de autonomía de la batería</label>
                         <input type="number" id="autonomyDays" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 2">
-                    </div>
-                    <div>
-                        <label for="provinceOffGrid" class="block text-sm font-medium text-gray-700">Provincia (para cálculo)</label>
-                        <select id="provinceOffGrid" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
-                            <option value="">Selecciona una provincia</option>
-                        </select>
                     </div>
                 </div>
 
@@ -472,10 +460,8 @@
 
         // Lógica que se ejecuta al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
-            // Carga las provincias en los selectores
+            // Carga las provincias en el selector principal
             p1_1('clientProvince');
-            p1_1('provinceOnGrid');
-            p1_1('provinceOffGrid');
             // Carga los artefactos predefinidos
             p2_1();
             // Agrega event listeners a los campos de cliente para habilitar/deshabilitar botones
@@ -590,13 +576,14 @@
         // Calcula el dimensionamiento para un sistema On-Grid
         function c1() {
             const k = parseFloat(document.getElementById('annualKwh').value);
-            const p = document.getElementById('provinceOnGrid').value;
+            // Obtiene la provincia desde los datos del cliente
+            const p = document.getElementById('clientProvince').value;
             const r = document.getElementById('onGridResults');
             const m = document.getElementById('onGridErrorMessage');
             const c = document.getElementById('onGridSuccessContent');
             if (isNaN(k) || k <= 0 || !p) {
                 r.classList.remove('hidden');
-                m.innerText = 'Por favor, ingresa un consumo anual válido y selecciona una provincia.';
+                m.innerText = 'Por favor, ingresa un consumo anual válido y completa los datos del cliente.';
                 c.classList.add('hidden');
                 return false;
             }
@@ -636,7 +623,6 @@
                 return;
             }
             const k = document.getElementById('annualKwh').value;
-            const pr_calc = document.getElementById('provinceOnGrid').options[document.getElementById('provinceOnGrid').selectedIndex].text;
             const pr = document.getElementById('onGridPanelResult').innerText;
             const ir = document.getElementById('onGridInverterResult').innerText;
             const gr = document.getElementById('onGridGenerationResult').innerText;
@@ -648,7 +634,6 @@
                 `Localidad: ${l}\n\n` +
                 `*Dimensionamiento Inicial:*\n` +
                 `Consumo anual: ${k} kWh\n` +
-                `Provincia para cálculo: ${pr_calc}\n` +
                 `${pr}\n` +
                 `${ir}\n` +
                 `${gr}\n`;
@@ -660,7 +645,8 @@
         // Calcula el dimensionamiento para un sistema Off-Grid
         function c2() {
             const autonomyDays = parseFloat(document.getElementById('autonomyDays').value);
-            const province = document.getElementById('provinceOffGrid').value;
+            // Obtiene la provincia desde los datos del cliente
+            const province = document.getElementById('clientProvince').value;
             const offGridResultsDiv = document.getElementById('offGridResults');
             const errorMessageDiv = document.getElementById('offGridErrorMessage');
             const successContentDiv = document.getElementById('offGridSuccessContent');
@@ -765,12 +751,11 @@
             const tdc = document.getElementById('totalDailyConsumption');
             const dk = parseFloat(tdc.innerText.replace(' kWh', ''));
             const a = document.getElementById('autonomyDays').value;
-            const pr_calc = document.getElementById('provinceOffGrid').options[document.getElementById('provinceOffGrid').selectedIndex].text;
-            const offGridResultsDiv = document.getElementById('offGridResults');
             const pr = document.getElementById('offGridPanelResult').innerText;
             const ir = document.getElementById('offGridInverterResult').innerText;
             
             // Leer la mejor configuración de los atributos de datos
+            const offGridResultsDiv = document.getElementById('offGridResults');
             const bestVoltage = offGridResultsDiv.dataset.bestVoltage;
             const bestAh = offGridResultsDiv.dataset.bestAh;
             const bestNumBatteries = offGridResultsDiv.dataset.bestNumBatteries;
@@ -802,7 +787,6 @@
                 `*Dimensionamiento Inicial:*\n` +
                 `Consumo diario total: ${dk.toFixed(2)} kWh\n` +
                 `Autonomía de baterías: ${a} días\n` +
-                `Provincia para cálculo: ${pr_calc}\n` +
                 `${pr}\n` +
                 `${ir}\n` +
                 `${br}\n`;
